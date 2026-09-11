@@ -141,6 +141,8 @@ HTML_TEMPLATE = r"""<!doctype html>
   th.sortdesc::after{content:" \25BC";color:var(--muted)}
   td.num,th.num{text-align:right}
   th.rem{background:#e3ecf5;font-size:11px;padding:7px 6px}
+  td.cust{max-width:160px;overflow:hidden;text-overflow:ellipsis}
+  th.cust{max-width:160px}
   td.rem{color:#c9ced6;font-variant-numeric:tabular-nums}
   td.rem.has{color:var(--accent);font-weight:700;background:#eef5ff}
   .bal{color:var(--accent)}
@@ -208,7 +210,7 @@ HTML_TEMPLATE = r"""<!doctype html>
             <th data-k="tpsz">TPSZ</th>
             <th data-k="pucode">Pickup</th>
             <th data-k="puname">Pickup Name</th>
-            <th data-k="cust">ลูกค้า (ORG CUST)</th>
+            <th data-k="cust" class="cust">ลูกค้า (ORG CUST)</th>
             <th data-k="group">โซน</th>
             <th data-k="booked_qty" class="num">Booked</th>
             <th data-k="pickup_qty" class="num">รับแล้ว</th>
@@ -287,7 +289,8 @@ function render(){
       `<td><span class="expander" data-bk="${esc(d.bk)}">${esc(d.bk)} &#9662;</span></td>`+
       `<td>${esc(d.vsl)}</td><td>${esc(d.voy)}</td><td title="${esc(d.etd)}">${esc(d.etd.split(' ')[0])}</td>`+
       `<td>${esc(d.lod)}</td><td>${esc(d.dis)}</td><td>${esc(d.tpsz)}</td>`+
-      `<td>${esc(d.pucode)}</td><td title="${esc(d.puname)}">${esc(d.puname.split(' ')[0])}</td><td>${esc(d.cust)}</td>`+
+      `<td>${esc(d.pucode)}</td><td title="${esc(d.puname)}">${esc(d.puname.split(' ')[0])}</td>`+
+      `<td class="cust" title="${esc(d.cust)}">${esc(d.cust)}</td>`+
       `<td><span class="pill ${d.group||'OTHER'}">${esc(d.group||'-')}</span></td>`+
       `<td class="num">${d.booked_qty}</td><td class="num">${d.pickup_qty}</td>`+
       `<td class="num bal">${d.balance}</td>`+
