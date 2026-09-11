@@ -128,8 +128,9 @@ HTML_TEMPLATE = r"""<!doctype html>
   .controls button{padding:8px 12px;border:1px solid var(--accent2);background:var(--accent2);color:#fff;
      border-radius:8px;cursor:pointer;font-size:13px}
   .controls button.ghost{background:#fff;color:var(--accent2)}
-  .layout{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:start}
-  @media(max-width:900px){.layout{grid-template-columns:1fr}}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  @media(max-width:900px){.charts{grid-template-columns:1fr}}
+  .layout{display:grid;grid-template-columns:1fr;gap:14px;align-items:start}
   .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
   .panel h3{margin:0;padding:10px 14px;font-size:13px;border-bottom:1px solid var(--line);background:#fafbfc}
   .tablewrap{overflow-x:auto;max-height:70vh;overflow-y:auto}
@@ -167,6 +168,17 @@ HTML_TEMPLATE = r"""<!doctype html>
 
   <div class="kpis" id="kpis"></div>
 
+  <div class="charts">
+    <div class="panel">
+      <h3>ตู้ค้างรับ แยกตาม Pickup depot</h3>
+      <div id="chart" style="padding:6px 0 12px"></div>
+    </div>
+    <div class="panel">
+      <h3>ตู้ค้างรับ แยกตามชนิด</h3>
+      <div id="chartType" style="padding:6px 0 12px"></div>
+    </div>
+  </div>
+
   <div class="controls">
     <input type="text" id="q" placeholder="ค้นหา: BK No / ลูกค้า / depot / commodity / VSL / VOY ...">
     <select id="fGroup"><option value="">โซนทั้งหมด</option><option>BKK</option><option>LCH</option></select>
@@ -182,7 +194,7 @@ HTML_TEMPLATE = r"""<!doctype html>
   </div>
 
   <div class="layout">
-    <div class="panel">
+    <div class="panel full">
       <h3 id="resultHead"></h3>
       <div class="tablewrap">
         <table id="tbl">
@@ -215,13 +227,6 @@ HTML_TEMPLATE = r"""<!doctype html>
           <tbody id="tbody"></tbody>
         </table>
       </div>
-    </div>
-
-    <div class="panel">
-      <h3>ตู้ค้างรับ แยกตาม Pickup depot</h3>
-      <div id="chart" style="padding:6px 0 12px"></div>
-      <h3 style="border-top:1px solid var(--line)">ตู้ค้างรับ แยกตามชนิด</h3>
-      <div id="chartType" style="padding:6px 0 12px"></div>
     </div>
   </div>
 </div>
