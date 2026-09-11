@@ -197,7 +197,6 @@ HTML_TEMPLATE = r"""<!doctype html>
             <th data-k="pucode">Pickup</th>
             <th data-k="puname">Pickup Name</th>
             <th data-k="cust">ลูกค้า (ORG CUST)</th>
-            <th data-k="commodity">Commodity</th>
             <th data-k="group">โซน</th>
             <th data-k="booked_qty" class="num">Booked</th>
             <th data-k="pickup_qty" class="num">รับแล้ว</th>
@@ -281,9 +280,9 @@ function render(){
   for (const d of rows){
     const tr = document.createElement('tr');
     tr.innerHTML =
-      `<td><b>${esc(d.bk)}</b></td><td>${esc(d.vsl)}</td><td>${esc(d.voy)}</td><td>${esc(d.etd)}</td>`+
+      `<td><b>${esc(d.bk)}</b></td><td>${esc(d.vsl)}</td><td>${esc(d.voy)}</td><td title="${esc(d.etd)}">${esc(d.etd.split(' ')[0])}</td>`+
       `<td>${esc(d.lod)}</td><td>${esc(d.dis)}</td><td>${esc(d.tpsz)}</td>`+
-      `<td>${esc(d.pucode)}</td><td title="${esc(d.puname)}">${esc(d.puname.split(' ')[0])}</td><td>${esc(d.cust)}</td><td>${esc(d.commodity)}</td>`+
+      `<td>${esc(d.pucode)}</td><td title="${esc(d.puname)}">${esc(d.puname.split(' ')[0])}</td><td>${esc(d.cust)}</td>`+
       `<td><span class="pill ${d.group||'OTHER'}">${esc(d.group||'-')}</span></td>`+
       `<td class="num">${d.booked_qty}</td><td class="num">${d.pickup_qty}</td>`+
       `<td class="num bal">${d.balance}</td>`+
@@ -344,9 +343,10 @@ $('#tbody').addEventListener('click', e => {
   const chips = TYPE_COLS.filter(c => d.rem[c] > 0).map(c => `<span>${c}: ${d.rem[c]}</span>`).join('') || '<span>-</span>';
   const dr = document.createElement('tr');
   dr.className = 'detail';
-  dr.innerHTML = `<td colspan="25">
-     <b>POR:</b> ${esc(d.por)||'-'} &nbsp; <b>TRAN DT:</b> ${esc(d.trandt)||'-'} &nbsp;
+  dr.innerHTML = `<td colspan="24">
+     <b>ETD เต็ม:</b> ${esc(d.etd)||'-'} &nbsp; <b>POR:</b> ${esc(d.por)||'-'} &nbsp; <b>TRAN DT:</b> ${esc(d.trandt)||'-'} &nbsp;
      <b>Pickup code:</b> ${esc(d.pucode)||'-'}<br>
+     <b>Commodity:</b> ${esc(d.commodity)||'-'}<br>
      <b>TRAFFIC ORDER:</b> ${esc(d.traffic)||'-'}<br>
      <b>คงเหลือแยกชนิด:</b> <span class="typechips">${chips}</span></td>`;
   tr.after(dr);
