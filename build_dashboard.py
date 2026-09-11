@@ -301,7 +301,7 @@ function drawChart(rows){
   const items = Object.entries(by).sort((a,b)=>b[1]-a[1]);
   const max = Math.max(1, ...items.map(i=>i[1]));
   $('#chart').innerHTML = items.map(([n,v]) =>
-    `<div class="bar-row"><div class="name" title="${esc(n)}">${esc(n)}</div>`+
+    `<div class="bar-row"><div class="name" title="${esc(n)}">${esc(n.split(' ')[0])}</div>`+
     `<div class="bar-track"><div class="bar-fill" style="width:${v/max*100}%"></div></div>`+
     `<div class="val">${v}</div></div>`).join('') || '<div class="bar-row muted">ไม่มีข้อมูล</div>';
 }

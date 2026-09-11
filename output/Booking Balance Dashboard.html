@@ -62,7 +62,7 @@
 <body>
 <header>
   <h1>Booking Balance Dashboard &mdash; บุ๊คที่ค้างรับ</h1>
-  <div class="sub">ที่มา: Booking Balance Summary - Copy.xlsx &nbsp;|&nbsp; สร้างเมื่อ 2026-09-11 16:52 &nbsp;|&nbsp; 100 BK No ค้างรับ</div>
+  <div class="sub">ที่มา: Booking Balance Summary - Copy.xlsx &nbsp;|&nbsp; สร้างเมื่อ 2026-09-12 00:35 &nbsp;|&nbsp; 100 BK No ค้างรับ</div>
 </header>
 <div class="wrap">
 
@@ -202,7 +202,7 @@ function drawChart(rows){
   const items = Object.entries(by).sort((a,b)=>b[1]-a[1]);
   const max = Math.max(1, ...items.map(i=>i[1]));
   $('#chart').innerHTML = items.map(([n,v]) =>
-    `<div class="bar-row"><div class="name" title="${esc(n)}">${esc(n)}</div>`+
+    `<div class="bar-row"><div class="name" title="${esc(n)}">${esc(n.split(' ')[0])}</div>`+
     `<div class="bar-track"><div class="bar-fill" style="width:${v/max*100}%"></div></div>`+
     `<div class="val">${v}</div></div>`).join('') || '<div class="bar-row muted">ไม่มีข้อมูล</div>';
 }
