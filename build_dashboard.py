@@ -283,7 +283,7 @@ function render(){
     tr.innerHTML =
       `<td><b>${esc(d.bk)}</b></td><td>${esc(d.vsl)}</td><td>${esc(d.voy)}</td><td>${esc(d.etd)}</td>`+
       `<td>${esc(d.lod)}</td><td>${esc(d.dis)}</td><td>${esc(d.tpsz)}</td>`+
-      `<td>${esc(d.pucode)}</td><td>${esc(d.puname)}</td><td>${esc(d.cust)}</td><td>${esc(d.commodity)}</td>`+
+      `<td>${esc(d.pucode)}</td><td title="${esc(d.puname)}">${esc(d.puname.split(' ')[0])}</td><td>${esc(d.cust)}</td><td>${esc(d.commodity)}</td>`+
       `<td><span class="pill ${d.group||'OTHER'}">${esc(d.group||'-')}</span></td>`+
       `<td class="num">${d.booked_qty}</td><td class="num">${d.pickup_qty}</td>`+
       `<td class="num bal">${d.balance}</td>`+

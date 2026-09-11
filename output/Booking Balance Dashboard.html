@@ -62,7 +62,7 @@
 <body>
 <header>
   <h1>Booking Balance Dashboard &mdash; บุ๊คที่ค้างรับ</h1>
-  <div class="sub">ที่มา: Booking Balance Summary - Copy.xlsx &nbsp;|&nbsp; สร้างเมื่อ 2026-09-12 00:35 &nbsp;|&nbsp; 100 BK No ค้างรับ</div>
+  <div class="sub">ที่มา: Booking Balance Summary - Copy.xlsx &nbsp;|&nbsp; สร้างเมื่อ 2026-09-12 00:42 &nbsp;|&nbsp; 100 BK No ค้างรับ</div>
 </header>
 <div class="wrap">
 
@@ -184,7 +184,7 @@ function render(){
     tr.innerHTML =
       `<td><b>${esc(d.bk)}</b></td><td>${esc(d.vsl)}</td><td>${esc(d.voy)}</td><td>${esc(d.etd)}</td>`+
       `<td>${esc(d.lod)}</td><td>${esc(d.dis)}</td><td>${esc(d.tpsz)}</td>`+
-      `<td>${esc(d.pucode)}</td><td>${esc(d.puname)}</td><td>${esc(d.cust)}</td><td>${esc(d.commodity)}</td>`+
+      `<td>${esc(d.pucode)}</td><td title="${esc(d.puname)}">${esc(d.puname.split(' ')[0])}</td><td>${esc(d.cust)}</td><td>${esc(d.commodity)}</td>`+
       `<td><span class="pill ${d.group||'OTHER'}">${esc(d.group||'-')}</span></td>`+
       `<td class="num">${d.booked_qty}</td><td class="num">${d.pickup_qty}</td>`+
       `<td class="num bal">${d.balance}</td>`+
