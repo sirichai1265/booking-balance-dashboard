@@ -222,7 +222,6 @@ HTML_TEMPLATE = r"""<!doctype html>
             <th data-k="rem_UT42" class="num rem">UT42</th>
             <th data-k="rem_PC22" class="num rem">PC22</th>
             <th data-k="rem_PC42" class="num rem">PC42</th>
-            <th>รายละเอียด</th>
           </tr></thead>
           <tbody id="tbody"></tbody>
         </table>
@@ -285,14 +284,14 @@ function render(){
   for (const d of rows){
     const tr = document.createElement('tr');
     tr.innerHTML =
-      `<td><b>${esc(d.bk)}</b></td><td>${esc(d.vsl)}</td><td>${esc(d.voy)}</td><td title="${esc(d.etd)}">${esc(d.etd.split(' ')[0])}</td>`+
+      `<td><span class="expander" data-bk="${esc(d.bk)}">${esc(d.bk)} &#9662;</span></td>`+
+      `<td>${esc(d.vsl)}</td><td>${esc(d.voy)}</td><td title="${esc(d.etd)}">${esc(d.etd.split(' ')[0])}</td>`+
       `<td>${esc(d.lod)}</td><td>${esc(d.dis)}</td><td>${esc(d.tpsz)}</td>`+
       `<td>${esc(d.pucode)}</td><td title="${esc(d.puname)}">${esc(d.puname.split(' ')[0])}</td><td>${esc(d.cust)}</td>`+
       `<td><span class="pill ${d.group||'OTHER'}">${esc(d.group||'-')}</span></td>`+
       `<td class="num">${d.booked_qty}</td><td class="num">${d.pickup_qty}</td>`+
       `<td class="num bal">${d.balance}</td>`+
-      TYPE_COLS.map(c => `<td class="num rem${d.rem[c]>0?' has':''}">${d.rem[c]>0?d.rem[c]:'·'}</td>`).join('')+
-      `<td><span class="expander" data-bk="${esc(d.bk)}">ดู &#9662;</span></td>`;
+      TYPE_COLS.map(c => `<td class="num rem${d.rem[c]>0?' has':''}">${d.rem[c]>0?d.rem[c]:'·'}</td>`).join('');
     tbody.appendChild(tr);
   }
   drawChart(rows);
@@ -348,7 +347,7 @@ $('#tbody').addEventListener('click', e => {
   const chips = TYPE_COLS.filter(c => d.rem[c] > 0).map(c => `<span>${c}: ${d.rem[c]}</span>`).join('') || '<span>-</span>';
   const dr = document.createElement('tr');
   dr.className = 'detail';
-  dr.innerHTML = `<td colspan="24">
+  dr.innerHTML = `<td colspan="23">
      <b>ETD เต็ม:</b> ${esc(d.etd)||'-'} &nbsp; <b>POR:</b> ${esc(d.por)||'-'} &nbsp; <b>TRAN DT:</b> ${esc(d.trandt)||'-'} &nbsp;
      <b>Pickup code:</b> ${esc(d.pucode)||'-'}<br>
      <b>Commodity:</b> ${esc(d.commodity)||'-'}<br>
