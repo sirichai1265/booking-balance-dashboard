@@ -179,7 +179,6 @@ HTML_TEMPLATE = r"""<!doctype html>
       <option value="PC">PC (แฟลตแร็ค)</option>
     </select>
     <button class="ghost" id="clear">ล้างตัวกรอง</button>
-    <button id="csv">ดาวน์โหลด CSV</button>
   </div>
 
   <div class="layout">
@@ -362,19 +361,6 @@ document.querySelectorAll('#tbl th[data-k]').forEach(th => {
     th.classList.add(sortDir === 1 ? 'sortasc' : 'sortdesc');
     render();
   });
-});
-
-$('#csv').addEventListener('click', () => {
-  const rows = sortRows(filtered());
-  const cols = ['bk','vsl','voy','etd','por','lod','dis','tpsz','pucode','puname','trandt','cust','commodity','traffic','group','booked_qty','pickup_qty','balance', ...TYPE_COLS.map(c=>c+'_rem')];
-  const head = ['BK No','VSL','VOY','ETD','POR','LOD','DIS','TPSZ','Pickup','Pickup Name','TRAN DT','ORG CUST','COMMODITY','TRAFFIC ORDER','Group','Booked','PickedUp','Balance', ...TYPE_COLS.map(c=>c+' Remaining')];
-  const line = a => a.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',');
-  const body = rows.map(d => line([...cols.slice(0,18).map(c=>d[c]), ...TYPE_COLS.map(c=>d.rem[c]||0)]));
-  const blob = new Blob(['﻿' + [line(head), ...body].join('\r\n')], {type:'text/csv;charset=utf-8'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'booking_balance_filtered.csv';
-  a.click();
 });
 
 [q,fGroup,fPickup,fType].forEach(el => el.addEventListener('input', render));
