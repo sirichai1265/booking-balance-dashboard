@@ -15,7 +15,10 @@ build_dashboard.py
 - ถ้าใส่ไฟล์ .xls ต้นฉบับ: คำนวณยอดคงเหลือเอง (เรียกใช้ build_booking_balance_report.py) ไม่ต้องพึ่ง Excel เลย
 - ถ้าใส่ไฟล์ .xlsx (ชีต Data): อ่านค่าที่ Excel คำนวณไว้แล้ว (data_only) — ต้องเปิดไฟล์ใน Excel แล้ว Save
   หนึ่งครั้งก่อน ไม่งั้นค่าจะว่าง
-ผลลัพธ์:  Booking Balance Dashboard.html  (ในโฟลเดอร์เดียวกับไฟล์ต้นทาง)
+ผลลัพธ์:
+  - Booking Balance Dashboard.html  (ในโฟลเดอร์เดียวกับไฟล์ต้นทาง)
+  - Daily Booking <YYYY-MM-DD>.xlsx (รูปแบบ "daily booking" 1 ชีต — บันทึกลงโฟลเดอร์โปรเจกต์นี้เสมอ
+    ไม่ว่าไฟล์ต้นทางจะอยู่ที่ไหน; แทนปุ่มดาวน์โหลด Excel บนเว็บที่เอาออกแล้ว)
 """
 
 import glob
@@ -250,7 +253,6 @@ HTML_TEMPLATE = r"""<!doctype html>
       <option value="PC">PC (แฟลตแร็ค)</option>
     </select>
     <button class="ghost" id="clear">ล้างตัวกรอง</button>
-    <button id="xlsx">ดาวน์โหลด Excel</button>
   </div>
 
   <div class="layout">
@@ -283,7 +285,6 @@ HTML_TEMPLATE = r"""<!doctype html>
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DATA = __DATA__;
 const TYPE_COLS = __TYPES__;
@@ -477,22 +478,6 @@ document.querySelectorAll('#tbl th[data-k]').forEach(th => {
 [q,fGroup,fPickup,fType].forEach(el => el.addEventListener('input', render));
 $('#clear').addEventListener('click', () => { q.value=''; fGroup.value=''; fPickup.value=''; fType.value=''; render(); });
 
-$('#xlsx').addEventListener('click', () => {
-  const rowsOut = sortRows(filtered());
-  const header = ['BK No','VSL','VOY','ETD','POR','LOD','DIS','TPSZ','Pickup','Pickup Name','TRAN DT',
-    'ORG CUST','Commodity','TRAFFIC ORDER','Group','Booked','PickedUp','Balance', ...TYPE_COLS.map(c => c+' Remaining')];
-  const aoa = [header, ...rowsOut.map(d => [
-    d.bk, d.vsl, d.voy, d.etd, d.por, d.lod, d.dis, d.tpsz, d.pucode, d.puname, d.trandt,
-    d.cust, d.commodity, d.traffic, d.group, d.booked_qty, d.pickup_qty, d.balance,
-    ...TYPE_COLS.map(c => d.rem[c] || 0)
-  ])];
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = header.map(h => ({ wch: Math.max(10, h.length + 2) }));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Pending Pickup');
-  XLSX.writeFile(wb, 'booking_pending_pickup.xlsx');
-});
-
 drawKpis();
 document.querySelector('#tbl th[data-k="balance"]').classList.add('sortdesc');
 render();
@@ -500,6 +485,59 @@ render();
 </body>
 </html>
 """
+
+
+def write_daily_booking_excel(recs, out_dir, src_name):
+    """สร้างไฟล์ Excel รูปแบบ 'Daily Booking' (บุ๊คค้างรับทั้งหมด 1 ชีต) — บันทึกลงโฟลเดอร์โปรเจกต์
+    (PENDING BKG) เสมอ ไม่ว่าไฟล์ต้นทางจะอยู่โฟลเดอร์ไหน เรียกอัตโนมัติทุกครั้งที่รัน build_dashboard.py
+    แทนปุ่มดาวน์โหลด Excel บนเว็บที่เอาออกไปแล้ว
+    """
+    import datetime
+
+    import build_booking_balance_report as bbr
+    from openpyxl import Workbook
+    from openpyxl.utils import get_column_letter
+
+    cols = (["BK No", "VSL", "VOY", "ETD", "POR", "LOD", "DIS", "TPSZ", "Pickup", "Pickup Name",
+             "TRAN DT", "ORG CUST", "Commodity", "TRAFFIC ORDER", "Group", "Booked", "PickedUp", "Balance"]
+            + [f"{t} Remaining" for t in TYPE_COLS])
+    ncol = len(cols)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Daily Booking"
+    bbr.put_title(ws, f"DAILY BOOKING — Outstanding pickups   |   source: {src_name}", ncol)
+    for c, h in enumerate(cols, start=1):
+        ws.cell(row=2, column=c, value=h)
+    bbr.style_header_row(ws, 2, ncol)
+
+    rows_sorted = sorted(recs, key=lambda d: (d["group"] or "ZZZ", d["puname"], d["bk"]))
+    r = 3
+    for d in rows_sorted:
+        vals = [d["bk"], d["vsl"], d["voy"], d["etd"], d["por"], d["lod"], d["dis"], d["tpsz"],
+                d["pucode"], d["puname"], d["trandt"], d["cust"], d["commodity"], d["traffic"],
+                d["group"], d["booked_qty"], d["pickup_qty"], d["balance"]]
+        vals += [d["rem"].get(t, 0) for t in TYPE_COLS]
+        for c, v in enumerate(vals, start=1):
+            bbr.write_cell(ws, r, c, v)
+        r += 1
+
+    tot = r
+    bbr.write_cell(ws, tot, 1, "TOTAL", bold=True, fill=bbr.FILL_TOTAL)
+    for c in range(2, 16):
+        bbr.write_cell(ws, tot, c, None, bold=True, fill=bbr.FILL_TOTAL)
+    for c in range(16, ncol + 1):
+        L = get_column_letter(c)
+        bbr.write_cell(ws, tot, c, f"=SUM({L}3:{L}{tot - 1})", bold=True, fill=bbr.FILL_TOTAL)
+
+    ws.freeze_panes = "A3"
+    ws.auto_filter.ref = f"A2:{get_column_letter(ncol)}{tot - 1}"
+    bbr.set_widths(ws, [18, 8, 8, 15, 8, 8, 8, 10, 9, 32, 10, 28, 24, 26, 7, 8, 9, 9] + [10] * len(TYPE_COLS))
+
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    path = os.path.join(out_dir, f"Daily Booking {today}.xlsx")
+    wb.save(path)
+    return path
 
 
 def main():
@@ -534,6 +572,10 @@ def main():
     with open(out, "w", encoding="utf-8") as f:
         f.write(html_out)
     print(f"[out] {out}")
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    xlsx_path = write_daily_booking_excel(recs, here, os.path.basename(src))
+    print(f"[out] {xlsx_path}")
 
 
 if __name__ == "__main__":
