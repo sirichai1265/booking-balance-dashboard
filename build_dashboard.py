@@ -162,7 +162,7 @@ HTML_TEMPLATE = r"""<!doctype html>
   header .clock{text-align:right;flex:none}
   header .clock .date{opacity:.8;font-size:13px}
   header .logo{flex:none;background:#fff;padding:5px 10px;border-radius:6px;display:flex;align-items:center}
-  header .logo img{height:88px;display:block}
+  header .logo img{height:64px;display:block}
   .wrap{padding:18px 22px 60px}
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
