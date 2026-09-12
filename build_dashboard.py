@@ -116,9 +116,12 @@ HTML_TEMPLATE = r"""<!doctype html>
          display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
   header h1{margin:0;font-size:19px;font-weight:700}
   header .sub{opacity:.8;font-size:12.5px;margin-top:3px}
+  header .header-right{display:flex;align-items:center;gap:16px;flex:none}
   header .clock{text-align:right;flex:none}
   header .clock .time{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
   header .clock .date{opacity:.8;font-size:12.5px;margin-top:3px}
+  header .logo{flex:none;background:#fff;padding:5px 10px;border-radius:6px;display:flex;align-items:center}
+  header .logo img{height:32px;display:block}
   .wrap{padding:18px 22px 60px}
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
@@ -171,9 +174,12 @@ HTML_TEMPLATE = r"""<!doctype html>
     <h1>Booking Balance Dashboard &mdash; บุ๊คที่ค้างรับ</h1>
     <div class="sub">ที่มา: __SRC__ &nbsp;|&nbsp; สร้างเมื่อ __GEN__ &nbsp;|&nbsp; __NREC__ BK No ค้างรับ</div>
   </div>
-  <div class="clock">
-    <div class="time" id="clockTime"></div>
-    <div class="date" id="clockDate"></div>
+  <div class="header-right">
+    <div class="clock">
+      <div class="time" id="clockTime"></div>
+      <div class="date" id="clockDate"></div>
+    </div>
+    <div class="logo"><img src="logo.png" alt="Heung-A Line"></div>
   </div>
 </header>
 <div class="wrap">
