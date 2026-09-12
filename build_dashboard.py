@@ -205,6 +205,9 @@ HTML_TEMPLATE = r"""<!doctype html>
   .legend{display:flex;flex-wrap:wrap;gap:10px;padding:8px 14px 2px;font-size:11px;color:var(--muted)}
   .legend-item{display:inline-flex;align-items:center;gap:4px}
   .legend-item i{width:10px;height:10px;border-radius:2px;display:inline-block}
+  .zone-head{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--ink);
+             padding:6px 14px;background:#f3f6fa;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .zone-head .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
   .muted{color:var(--muted)}
   .expander{cursor:pointer;color:var(--accent2);font-weight:700}
   .typechips span{display:inline-block;background:var(--chip);border-radius:6px;padding:1px 6px;margin:1px 3px 1px 0;font-size:11px}
@@ -247,6 +250,7 @@ HTML_TEMPLATE = r"""<!doctype html>
       <option value="PC">PC (แฟลตแร็ค)</option>
     </select>
     <button class="ghost" id="clear">ล้างตัวกรอง</button>
+    <button id="xlsx">ดาวน์โหลด Excel</button>
   </div>
 
   <div class="layout">
@@ -279,6 +283,7 @@ HTML_TEMPLATE = r"""<!doctype html>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DATA = __DATA__;
 const TYPE_COLS = __TYPES__;
@@ -363,21 +368,32 @@ function drawChart(rows){
   const by = {};
   rows.forEach(d => {
     const k = d.puname || '(ไม่ระบุ)';
-    if (!by[k]) by[k] = { total: 0, types: {} };
+    if (!by[k]) by[k] = { total: 0, types: {}, group: d.group || 'OTHER' };
     by[k].total += d.balance;
     TYPE_COLS.forEach(c => { by[k].types[c] = (by[k].types[c]||0) + (d.rem[c]||0); });
   });
   const items = Object.entries(by).sort((a,b)=>b[1].total-a[1].total);
   const max = Math.max(1, ...items.map(i=>i[1].total));
   const usedTypes = TYPE_COLS.filter(c => items.some(([,v]) => v.types[c] > 0));
-  const bars = items.map(([n,v]) => {
+
+  const renderBar = ([n,v]) => {
     const segs = TYPE_COLS.filter(c => v.types[c] > 0).map(c =>
       `<div class="seg" style="width:${v.types[c]/max*100}%;background:${TYPE_COLORS[c]}" title="${n} — ${c}: ${v.types[c]}"></div>`
     ).join('');
     return `<div class="bar-row"><div class="name" title="${esc(n)}">${esc(n.split(' ')[0])}</div>`+
       `<div class="bar-track">${segs}</div><div class="val">${v.total}</div></div>`;
-  }).join('') || '<div class="bar-row muted">ไม่มีข้อมูล</div>';
-  $('#chart').innerHTML = (usedTypes.length ? legendHtml(usedTypes.map(c => [c, TYPE_COLORS[c]])) : '') + bars;
+  };
+
+  let html = usedTypes.length ? legendHtml(usedTypes.map(c => [c, TYPE_COLORS[c]])) : '';
+  let any = false;
+  [['BKK','var(--bkk)'],['LCH','var(--lch)'],['OTHER','#888']].forEach(([zone,color]) => {
+    const zItems = items.filter(([,v]) => v.group === zone);
+    if (!zItems.length) return;
+    any = true;
+    html += `<div class="zone-head"><span class="dot" style="background:${color}"></span>${zone === 'OTHER' ? 'อื่นๆ' : zone}</div>`
+      + zItems.map(renderBar).join('');
+  });
+  $('#chart').innerHTML = any ? html : '<div class="bar-row muted">ไม่มีข้อมูล</div>';
 }
 
 // ตู้ค้างรับ แยกตามชนิด — แต่ละแท่งแบ่งสัดส่วนตามโซน BKK / LCH
@@ -457,6 +473,22 @@ document.querySelectorAll('#tbl th[data-k]').forEach(th => {
 
 [q,fGroup,fPickup,fType].forEach(el => el.addEventListener('input', render));
 $('#clear').addEventListener('click', () => { q.value=''; fGroup.value=''; fPickup.value=''; fType.value=''; render(); });
+
+$('#xlsx').addEventListener('click', () => {
+  const rowsOut = sortRows(filtered());
+  const header = ['BK No','VSL','VOY','ETD','POR','LOD','DIS','TPSZ','Pickup','Pickup Name','TRAN DT',
+    'ORG CUST','Commodity','TRAFFIC ORDER','Group','Booked','PickedUp','Balance', ...TYPE_COLS.map(c => c+' Remaining')];
+  const aoa = [header, ...rowsOut.map(d => [
+    d.bk, d.vsl, d.voy, d.etd, d.por, d.lod, d.dis, d.tpsz, d.pucode, d.puname, d.trandt,
+    d.cust, d.commodity, d.traffic, d.group, d.booked_qty, d.pickup_qty, d.balance,
+    ...TYPE_COLS.map(c => d.rem[c] || 0)
+  ])];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = header.map(h => ({ wch: Math.max(10, h.length + 2) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pending Pickup');
+  XLSX.writeFile(wb, 'booking_pending_pickup.xlsx');
+});
 
 drawKpis();
 document.querySelector('#tbl th[data-k="balance"]').classList.add('sortdesc');
