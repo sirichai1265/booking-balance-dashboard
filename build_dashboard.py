@@ -223,7 +223,7 @@ HTML_TEMPLATE = r"""<!doctype html>
 <header>
   <div>
     <h1>Booking Pending Pickup</h1>
-    <div class="sub">ที่มา: __SRC__ &nbsp;|&nbsp; อัพเดทเมื่อ __GEN__ &nbsp;|&nbsp; __NREC__ BK No ค้างรับ</div>
+    <div class="sub">อัพเดทเมื่อ __GEN__</div>
   </div>
   <div class="header-right">
     <div class="logo"><img src="logo.png" alt="Heung-A Line"></div>
@@ -294,7 +294,7 @@ const TYPE_COLS = __TYPES__;
 
 const $ = s => document.querySelector(s);
 const q = $('#q'), fGroup = $('#fGroup'), fPickup = $('#fPickup'), fType = $('#fType');
-let sortKey = 'balance', sortDir = -1;
+let sortKey = 'bk', sortDir = 1;
 
 // เติม dropdown Pickup Name
 [...new Set(DATA.map(d => d.puname).filter(Boolean))].sort()
@@ -486,7 +486,7 @@ document.querySelectorAll('#tbl th[data-k]').forEach(th => {
 $('#clear').addEventListener('click', () => { q.value=''; fGroup.value=''; fPickup.value=''; fType.value=''; render(); });
 
 drawKpis();
-document.querySelector('#tbl th[data-k="balance"]').classList.add('sortdesc');
+document.querySelector('#tbl th[data-k="bk"]').classList.add('sortasc');
 render();
 </script>
 </body>
