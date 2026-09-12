@@ -156,11 +156,9 @@ HTML_TEMPLATE = r"""<!doctype html>
        font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans Thai",sans-serif;font-size:14px}
   header{background:var(--accent);color:#fff;padding:16px 22px;
          display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
-  header h1{margin:0;font-size:19px;font-weight:700}
+  header h1{margin:0;font-size:28px;font-weight:700}
   header .sub{opacity:.8;font-size:12.5px;margin-top:3px}
   header .header-right{display:flex;align-items:center;gap:16px;flex:none}
-  header .clock{text-align:right;flex:none}
-  header .clock .date{opacity:.8;font-size:13px}
   header .logo{flex:none;background:#fff;padding:5px 10px;border-radius:6px;display:flex;align-items:center}
   header .logo img{height:64px;display:block}
   .wrap{padding:18px 22px 60px}
@@ -201,9 +199,12 @@ HTML_TEMPLATE = r"""<!doctype html>
   .bal{font-weight:700}
   .bar-row{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:12px}
   .bar-row .name{width:96px;flex:none;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
-  .bar-track{flex:1;background:#eef2f7;border-radius:5px;height:16px;position:relative}
-  .bar-fill{background:var(--accent2);height:100%;border-radius:5px}
+  .bar-track{flex:1;background:#eef2f7;border-radius:5px;height:16px;display:flex;overflow:hidden}
+  .bar-track .seg{height:100%}
   .bar-row .val{width:30px;flex:none;text-align:right;font-weight:600}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;padding:8px 14px 2px;font-size:11px;color:var(--muted)}
+  .legend-item{display:inline-flex;align-items:center;gap:4px}
+  .legend-item i{width:10px;height:10px;border-radius:2px;display:inline-block}
   .muted{color:var(--muted)}
   .expander{cursor:pointer;color:var(--accent2);font-weight:700}
   .typechips span{display:inline-block;background:var(--chip);border-radius:6px;padding:1px 6px;margin:1px 3px 1px 0;font-size:11px}
@@ -213,12 +214,9 @@ HTML_TEMPLATE = r"""<!doctype html>
 <header>
   <div>
     <h1>Booking Pending Pickup</h1>
-    <div class="sub">ที่มา: __SRC__ &nbsp;|&nbsp; สร้างเมื่อ __GEN__ &nbsp;|&nbsp; __NREC__ BK No ค้างรับ</div>
+    <div class="sub">ที่มา: __SRC__ &nbsp;|&nbsp; อัพเดทเมื่อ __GEN__ &nbsp;|&nbsp; __NREC__ BK No ค้างรับ</div>
   </div>
   <div class="header-right">
-    <div class="clock">
-      <div class="date" id="clockDate"></div>
-    </div>
     <div class="logo"><img src="logo.png" alt="Heung-A Line"></div>
   </div>
 </header>
@@ -348,27 +346,65 @@ function render(){
   drawTypeChart(rows);
 }
 
-function drawChart(rows){
-  const by = {};
-  rows.forEach(d => { const k = d.puname || '(ไม่ระบุ)'; by[k] = (by[k]||0) + d.balance; });
-  const items = Object.entries(by).sort((a,b)=>b[1]-a[1]);
-  const max = Math.max(1, ...items.map(i=>i[1]));
-  $('#chart').innerHTML = items.map(([n,v]) =>
-    `<div class="bar-row"><div class="name" title="${esc(n)}">${esc(n.split(' ')[0])}</div>`+
-    `<div class="bar-track"><div class="bar-fill" style="width:${v/max*100}%"></div></div>`+
-    `<div class="val">${v}</div></div>`).join('') || '<div class="bar-row muted">ไม่มีข้อมูล</div>';
+const TYPE_COLORS = {
+  GP22:'#2E75B6', GP42:'#5B9BD5', GP45:'#9DC3E6',
+  RE22:'#2f9e6b', RE45:'#8fcdae',
+  UT22:'#b7791f', UT42:'#e0ac4c',
+  PC22:'#8e44ad', PC42:'#c39bd3'
+};
+
+function legendHtml(entries){
+  return `<div class="legend">${entries.map(([label,color]) =>
+    `<span class="legend-item"><i style="background:${color}"></i>${label}</span>`).join('')}</div>`;
 }
 
+// ตู้ค้างรับ แยกตาม Pickup depot — แต่ละแท่งแบ่งสัดส่วนตามชนิดตู้ (GP22..PC42)
+function drawChart(rows){
+  const by = {};
+  rows.forEach(d => {
+    const k = d.puname || '(ไม่ระบุ)';
+    if (!by[k]) by[k] = { total: 0, types: {} };
+    by[k].total += d.balance;
+    TYPE_COLS.forEach(c => { by[k].types[c] = (by[k].types[c]||0) + (d.rem[c]||0); });
+  });
+  const items = Object.entries(by).sort((a,b)=>b[1].total-a[1].total);
+  const max = Math.max(1, ...items.map(i=>i[1].total));
+  const usedTypes = TYPE_COLS.filter(c => items.some(([,v]) => v.types[c] > 0));
+  const bars = items.map(([n,v]) => {
+    const segs = TYPE_COLS.filter(c => v.types[c] > 0).map(c =>
+      `<div class="seg" style="width:${v.types[c]/max*100}%;background:${TYPE_COLORS[c]}" title="${n} — ${c}: ${v.types[c]}"></div>`
+    ).join('');
+    return `<div class="bar-row"><div class="name" title="${esc(n)}">${esc(n.split(' ')[0])}</div>`+
+      `<div class="bar-track">${segs}</div><div class="val">${v.total}</div></div>`;
+  }).join('') || '<div class="bar-row muted">ไม่มีข้อมูล</div>';
+  $('#chart').innerHTML = (usedTypes.length ? legendHtml(usedTypes.map(c => [c, TYPE_COLORS[c]])) : '') + bars;
+}
+
+// ตู้ค้างรับ แยกตามชนิด — แต่ละแท่งแบ่งสัดส่วนตามโซน BKK / LCH
 function drawTypeChart(rows){
   const by = {};
-  TYPE_COLS.forEach(c => by[c] = 0);
-  rows.forEach(d => TYPE_COLS.forEach(c => by[c] += (d.rem[c]||0)));
-  const items = Object.entries(by).filter(i=>i[1]>0).sort((a,b)=>b[1]-a[1]);
-  const max = Math.max(1, ...items.map(i=>i[1]));
-  $('#chartType').innerHTML = items.map(([n,v]) =>
-    `<div class="bar-row"><div class="name">${n}</div>`+
-    `<div class="bar-track"><div class="bar-fill" style="width:${v/max*100}%"></div></div>`+
-    `<div class="val">${v}</div></div>`).join('') || '<div class="bar-row muted">ไม่มีข้อมูล</div>';
+  TYPE_COLS.forEach(c => by[c] = { total: 0, BKK: 0, LCH: 0, OTHER: 0 });
+  rows.forEach(d => {
+    const g = d.group === 'BKK' ? 'BKK' : d.group === 'LCH' ? 'LCH' : 'OTHER';
+    TYPE_COLS.forEach(c => {
+      const v = d.rem[c] || 0;
+      if (!v) return;
+      by[c][g] += v;
+      by[c].total += v;
+    });
+  });
+  const items = Object.entries(by).filter(([,v]) => v.total > 0).sort((a,b)=>b[1].total-a[1].total);
+  const max = Math.max(1, ...items.map(i=>i[1].total));
+  const hasOther = items.some(([,v]) => v.OTHER > 0);
+  const legend = [['BKK','var(--bkk)'],['LCH','var(--lch)']].concat(hasOther ? [['อื่นๆ','#888']] : []);
+  const bars = items.map(([n,v]) => {
+    let segs = '';
+    if (v.BKK   > 0) segs += `<div class="seg" style="width:${v.BKK/max*100}%;background:var(--bkk)" title="${n} — BKK: ${v.BKK}"></div>`;
+    if (v.LCH   > 0) segs += `<div class="seg" style="width:${v.LCH/max*100}%;background:var(--lch)" title="${n} — LCH: ${v.LCH}"></div>`;
+    if (v.OTHER > 0) segs += `<div class="seg" style="width:${v.OTHER/max*100}%;background:#888" title="${n} — อื่นๆ: ${v.OTHER}"></div>`;
+    return `<div class="bar-row"><div class="name">${n}</div><div class="bar-track">${segs}</div><div class="val">${v.total}</div></div>`;
+  }).join('') || '<div class="bar-row muted">ไม่มีข้อมูล</div>';
+  $('#chartType').innerHTML = legendHtml(legend) + bars;
 }
 
 function drawKpis(){
@@ -421,8 +457,6 @@ document.querySelectorAll('#tbl th[data-k]').forEach(th => {
 
 [q,fGroup,fPickup,fType].forEach(el => el.addEventListener('input', render));
 $('#clear').addEventListener('click', () => { q.value=''; fGroup.value=''; fPickup.value=''; fType.value=''; render(); });
-
-$('#clockDate').textContent = new Date().toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
 drawKpis();
 document.querySelector('#tbl th[data-k="balance"]').classList.add('sortdesc');
