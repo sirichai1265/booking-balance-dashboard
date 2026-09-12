@@ -261,7 +261,6 @@ HTML_TEMPLATE = r"""<!doctype html>
             <th data-k="tpsz">TPSZ</th>
             <th data-k="pucode">Pickup</th>
             <th data-k="cust" class="cust">ลูกค้า (ORG CUST)</th>
-            <th data-k="group">โซน</th>
             <th data-k="booked_qty" class="num">Booked</th>
             <th data-k="pickup_qty" class="num">รับแล้ว</th>
             <th data-k="balance" class="num">คงเหลือ</th>
@@ -340,7 +339,6 @@ function render(){
       `<td>${esc(d.tpsz)}</td>`+
       `<td>${esc(d.pucode)}</td>`+
       `<td class="cust" title="${esc(d.cust)}">${esc(d.cust)}</td>`+
-      `<td><span class="pill ${d.group||'OTHER'}">${esc(d.group||'-')}</span></td>`+
       `<td class="num">${d.booked_qty}</td><td class="num">${d.pickup_qty}</td>`+
       `<td class="num bal">${d.balance}</td>`+
       TYPE_COLS.map(c => `<td class="num rem${d.rem[c]>0?' has':''}">${d.rem[c]>0?d.rem[c]:'·'}</td>`).join('');
@@ -399,7 +397,7 @@ $('#tbody').addEventListener('click', e => {
   const chips = TYPE_COLS.filter(c => d.rem[c] > 0).map(c => `<span>${c}: ${d.rem[c]}</span>`).join('') || '<span>-</span>';
   const dr = document.createElement('tr');
   dr.className = 'detail';
-  dr.innerHTML = `<td colspan="17">
+  dr.innerHTML = `<td colspan="16">
      <b>VSL:</b> ${esc(d.vsl)||'-'} &nbsp; <b>VOY:</b> ${esc(d.voy)||'-'} &nbsp; <b>DIS:</b> ${esc(d.dis)||'-'}<br>
      <b>ETD:</b> ${esc(d.etd)||'-'} &nbsp; <b>POR:</b> ${esc(d.por)||'-'} &nbsp; <b>LOD:</b> ${esc(d.lod)||'-'} &nbsp;
      <b>TRAN DT:</b> ${esc(d.trandt)||'-'}<br>
