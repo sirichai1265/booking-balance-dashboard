@@ -13,9 +13,13 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
        font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans Thai",sans-serif;font-size:14px}
-  header{background:var(--accent);color:#fff;padding:16px 22px}
+  header{background:var(--accent);color:#fff;padding:16px 22px;
+         display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
   header h1{margin:0;font-size:19px;font-weight:700}
   header .sub{opacity:.8;font-size:12.5px;margin-top:3px}
+  header .clock{text-align:right;flex:none}
+  header .clock .time{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+  header .clock .date{opacity:.8;font-size:12.5px;margin-top:3px}
   .wrap{padding:18px 22px 60px}
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
@@ -64,8 +68,14 @@
 </head>
 <body>
 <header>
-  <h1>Booking Balance Dashboard &mdash; บุ๊คที่ค้างรับ</h1>
-  <div class="sub">ที่มา: Booking Balance Summary - Copy.xlsx &nbsp;|&nbsp; สร้างเมื่อ 2026-09-12 07:28 &nbsp;|&nbsp; 100 BK No ค้างรับ</div>
+  <div>
+    <h1>Booking Balance Dashboard &mdash; บุ๊คที่ค้างรับ</h1>
+    <div class="sub">ที่มา: Booking Balance Summary - Copy.xlsx &nbsp;|&nbsp; สร้างเมื่อ 2026-09-12 07:28 &nbsp;|&nbsp; 100 BK No ค้างรับ</div>
+  </div>
+  <div class="clock">
+    <div class="time" id="clockTime"></div>
+    <div class="date" id="clockDate"></div>
+  </div>
 </header>
 <div class="wrap">
 
@@ -268,6 +278,14 @@ document.querySelectorAll('#tbl th[data-k]').forEach(th => {
 
 [q,fGroup,fPickup,fType].forEach(el => el.addEventListener('input', render));
 $('#clear').addEventListener('click', () => { q.value=''; fGroup.value=''; fPickup.value=''; fType.value=''; render(); });
+
+function tickClock(){
+  const now = new Date();
+  $('#clockTime').textContent = now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  $('#clockDate').textContent = now.toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+tickClock();
+setInterval(tickClock, 1000);
 
 drawKpis();
 document.querySelector('#tbl th[data-k="balance"]').classList.add('sortdesc');
