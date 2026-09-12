@@ -154,9 +154,16 @@ HTML_TEMPLATE = r"""<!doctype html>
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
        font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans Thai",sans-serif;font-size:14px}
-  header{background:var(--accent);color:#fff;padding:16px 22px}
+  header{background:var(--accent);color:#fff;padding:16px 22px;
+         display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
   header h1{margin:0;font-size:19px;font-weight:700}
   header .sub{opacity:.8;font-size:12.5px;margin-top:3px}
+  header .header-right{display:flex;align-items:center;gap:16px;flex:none}
+  header .clock{text-align:right;flex:none}
+  header .clock .time{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+  header .clock .date{opacity:.8;font-size:12.5px;margin-top:3px}
+  header .logo{flex:none;background:#fff;padding:5px 10px;border-radius:6px;display:flex;align-items:center}
+  header .logo img{height:32px;display:block}
   .wrap{padding:18px 22px 60px}
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
@@ -205,8 +212,17 @@ HTML_TEMPLATE = r"""<!doctype html>
 </head>
 <body>
 <header>
-  <h1>Booking Balance Dashboard &mdash; บุ๊คที่ค้างรับ</h1>
-  <div class="sub">ที่มา: __SRC__ &nbsp;|&nbsp; สร้างเมื่อ __GEN__ &nbsp;|&nbsp; __NREC__ BK No ค้างรับ</div>
+  <div>
+    <h1>Booking Balance Dashboard &mdash; บุ๊คที่ค้างรับ</h1>
+    <div class="sub">ที่มา: __SRC__ &nbsp;|&nbsp; สร้างเมื่อ __GEN__ &nbsp;|&nbsp; __NREC__ BK No ค้างรับ</div>
+  </div>
+  <div class="header-right">
+    <div class="clock">
+      <div class="time" id="clockTime"></div>
+      <div class="date" id="clockDate"></div>
+    </div>
+    <div class="logo"><img src="logo.png" alt="Heung-A Line"></div>
+  </div>
 </header>
 <div class="wrap">
 
@@ -244,9 +260,6 @@ HTML_TEMPLATE = r"""<!doctype html>
         <table id="tbl">
           <thead><tr>
             <th data-k="bk">BK No</th>
-            <th data-k="vsl">VSL</th>
-            <th data-k="voy">VOY</th>
-            <th data-k="dis">DIS</th>
             <th data-k="tpsz">TPSZ</th>
             <th data-k="pucode">Pickup</th>
             <th data-k="cust" class="cust">ลูกค้า (ORG CUST)</th>
@@ -326,7 +339,7 @@ function render(){
     const tr = document.createElement('tr');
     tr.innerHTML =
       `<td><span class="expander" data-bk="${esc(d.bk)}">${esc(d.bk)} &#9662;</span></td>`+
-      `<td>${esc(d.vsl)}</td><td>${esc(d.voy)}</td><td>${esc(d.dis)}</td><td>${esc(d.tpsz)}</td>`+
+      `<td>${esc(d.tpsz)}</td>`+
       `<td>${esc(d.pucode)}</td>`+
       `<td class="cust" title="${esc(d.cust)}">${esc(d.cust)}</td>`+
       `<td><span class="pill ${d.group||'OTHER'}">${esc(d.group||'-')}</span></td>`+
@@ -388,7 +401,8 @@ $('#tbody').addEventListener('click', e => {
   const chips = TYPE_COLS.filter(c => d.rem[c] > 0).map(c => `<span>${c}: ${d.rem[c]}</span>`).join('') || '<span>-</span>';
   const dr = document.createElement('tr');
   dr.className = 'detail';
-  dr.innerHTML = `<td colspan="20">
+  dr.innerHTML = `<td colspan="17">
+     <b>VSL:</b> ${esc(d.vsl)||'-'} &nbsp; <b>VOY:</b> ${esc(d.voy)||'-'} &nbsp; <b>DIS:</b> ${esc(d.dis)||'-'}<br>
      <b>ETD:</b> ${esc(d.etd)||'-'} &nbsp; <b>POR:</b> ${esc(d.por)||'-'} &nbsp; <b>LOD:</b> ${esc(d.lod)||'-'} &nbsp;
      <b>TRAN DT:</b> ${esc(d.trandt)||'-'}<br>
      <b>Pickup Name:</b> ${esc(d.puname)||'-'}<br>
@@ -411,6 +425,14 @@ document.querySelectorAll('#tbl th[data-k]').forEach(th => {
 
 [q,fGroup,fPickup,fType].forEach(el => el.addEventListener('input', render));
 $('#clear').addEventListener('click', () => { q.value=''; fGroup.value=''; fPickup.value=''; fType.value=''; render(); });
+
+function tickClock(){
+  const now = new Date();
+  $('#clockTime').textContent = now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  $('#clockDate').textContent = now.toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+tickClock();
+setInterval(tickClock, 1000);
 
 drawKpis();
 document.querySelector('#tbl th[data-k="balance"]').classList.add('sortdesc');
