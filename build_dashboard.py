@@ -397,30 +397,33 @@ function drawChart(rows){
 }
 
 // ตู้ค้างรับ แยกตามชนิด — แต่ละแท่งแบ่งสัดส่วนตามโซน BKK / LCH
+// ตู้ค้างรับ แยกตามชนิด — จัดกลุ่ม BKK ก่อน แล้ว LCH ตามด้วยชนิดตู้เรียงตามลำดับคงที่
 function drawTypeChart(rows){
-  const by = {};
-  TYPE_COLS.forEach(c => by[c] = { total: 0, BKK: 0, LCH: 0, OTHER: 0 });
+  const by = { BKK: {}, LCH: {}, OTHER: {} };
   rows.forEach(d => {
     const g = d.group === 'BKK' ? 'BKK' : d.group === 'LCH' ? 'LCH' : 'OTHER';
     TYPE_COLS.forEach(c => {
       const v = d.rem[c] || 0;
       if (!v) return;
-      by[c][g] += v;
-      by[c].total += v;
+      by[g][c] = (by[g][c]||0) + v;
     });
   });
-  const items = Object.entries(by).filter(([,v]) => v.total > 0).sort((a,b)=>b[1].total-a[1].total);
-  const max = Math.max(1, ...items.map(i=>i[1].total));
-  const hasOther = items.some(([,v]) => v.OTHER > 0);
-  const legend = [['BKK','var(--bkk)'],['LCH','var(--lch)']].concat(hasOther ? [['อื่นๆ','#888']] : []);
-  const bars = items.map(([n,v]) => {
-    let segs = '';
-    if (v.BKK   > 0) segs += `<div class="seg" style="width:${v.BKK/max*100}%;background:var(--bkk)" title="${n} — BKK: ${v.BKK}"></div>`;
-    if (v.LCH   > 0) segs += `<div class="seg" style="width:${v.LCH/max*100}%;background:var(--lch)" title="${n} — LCH: ${v.LCH}"></div>`;
-    if (v.OTHER > 0) segs += `<div class="seg" style="width:${v.OTHER/max*100}%;background:#888" title="${n} — อื่นๆ: ${v.OTHER}"></div>`;
-    return `<div class="bar-row"><div class="name">${n}</div><div class="bar-track">${segs}</div><div class="val">${v.total}</div></div>`;
-  }).join('') || '<div class="bar-row muted">ไม่มีข้อมูล</div>';
-  $('#chartType').innerHTML = legendHtml(legend) + bars;
+  const max = Math.max(1, ...Object.values(by).flatMap(o => Object.values(o)));
+  let html = '';
+  let any = false;
+  [['BKK','var(--bkk)'],['LCH','var(--lch)'],['OTHER','#888']].forEach(([zone,color]) => {
+    const typesInZone = TYPE_COLS.filter(c => by[zone][c] > 0);
+    if (!typesInZone.length) return;
+    any = true;
+    html += `<div class="zone-head"><span class="dot" style="background:${color}"></span>${zone === 'OTHER' ? 'อื่นๆ' : zone}</div>`;
+    html += typesInZone.map(c => {
+      const v = by[zone][c];
+      return `<div class="bar-row"><div class="name">${c}</div>`+
+        `<div class="bar-track"><div class="seg" style="width:${v/max*100}%;background:${color}" title="${zone} — ${c}: ${v}"></div></div>`+
+        `<div class="val">${v}</div></div>`;
+    }).join('');
+  });
+  $('#chartType').innerHTML = any ? html : '<div class="bar-row muted">ไม่มีข้อมูล</div>';
 }
 
 function drawKpis(){
