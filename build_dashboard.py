@@ -211,6 +211,9 @@ HTML_TEMPLATE = r"""<!doctype html>
   .zone-head{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--ink);
              padding:6px 14px;background:#f3f6fa;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .zone-head .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .bar-chips{padding:0 14px 8px 118px;display:flex;flex-wrap:wrap;gap:4px 8px;font-size:10.5px;color:var(--muted)}
+  .bar-chips span{display:inline-flex;align-items:center;gap:3px}
+  .bar-chips i{width:7px;height:7px;border-radius:2px;display:inline-block}
   .muted{color:var(--muted)}
   .expander{cursor:pointer;color:var(--accent2);font-weight:700}
   .typechips span{display:inline-block;background:var(--chip);border-radius:6px;padding:1px 6px;margin:1px 3px 1px 0;font-size:11px}
@@ -381,8 +384,12 @@ function drawChart(rows){
     const segs = TYPE_COLS.filter(c => v.types[c] > 0).map(c =>
       `<div class="seg" style="width:${v.types[c]/max*100}%;background:${TYPE_COLORS[c]}" title="${n} — ${c}: ${v.types[c]}"></div>`
     ).join('');
+    const chips = TYPE_COLS.filter(c => v.types[c] > 0).map(c =>
+      `<span><i style="background:${TYPE_COLORS[c]}"></i>${c}: ${v.types[c]}</span>`
+    ).join('');
     return `<div class="bar-row"><div class="name" title="${esc(n)}">${esc(n.split(' ')[0])}</div>`+
-      `<div class="bar-track">${segs}</div><div class="val">${v.total}</div></div>`;
+      `<div class="bar-track">${segs}</div><div class="val">${v.total}</div></div>`+
+      `<div class="bar-chips">${chips}</div>`;
   };
 
   let html = usedTypes.length ? legendHtml(usedTypes.map(c => [c, TYPE_COLORS[c]])) : '';
