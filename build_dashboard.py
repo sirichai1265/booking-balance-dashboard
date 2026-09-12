@@ -7,12 +7,14 @@ build_dashboard.py
 จากไฟล์ Booking Balance Summary (ชีต Data)
 
 การใช้งาน:
-    python build_dashboard.py "output/Booking Balance Summary - Copy.xlsx"
-    python build_dashboard.py            # ไม่ใส่ path -> หา *Balance Summary*.xlsx ให้เอง
+    python build_dashboard.py "9-12-PD - Copy.xls"                       # จากไฟล์ต้นฉบับโดยตรง (แนะนำ)
+    python build_dashboard.py "output/Booking Balance Summary - Copy.xlsx"  # หรือจากไฟล์สรุปที่เปิด/Save ด้วย Excel แล้ว
+    python build_dashboard.py            # ไม่ใส่ path -> หาไฟล์ให้เอง
 
-ต้องมี lib:  pip install openpyxl
-- อ่านค่าที่ Excel คำนวณไว้แล้ว (data_only) ; ถ้ายังไม่เคยเปิดไฟล์ใน Excel ค่าจะยังว่าง
-  ให้เปิดไฟล์ .xlsx ใน Excel แล้ว Save หนึ่งครั้งก่อน
+ต้องมี lib:  pip install xlrd openpyxl
+- ถ้าใส่ไฟล์ .xls ต้นฉบับ: คำนวณยอดคงเหลือเอง (เรียกใช้ build_booking_balance_report.py) ไม่ต้องพึ่ง Excel เลย
+- ถ้าใส่ไฟล์ .xlsx (ชีต Data): อ่านค่าที่ Excel คำนวณไว้แล้ว (data_only) — ต้องเปิดไฟล์ใน Excel แล้ว Save
+  หนึ่งครั้งก่อน ไม่งั้นค่าจะว่าง
 ผลลัพธ์:  Booking Balance Dashboard.html  (ในโฟลเดอร์เดียวกับไฟล์ต้นทาง)
 """
 
@@ -94,6 +96,46 @@ def load_rows(path):
         if not rec["balance"]:
             rec["balance"] = sum(rem.values())
         out.append(rec)
+    return out
+
+
+def load_rows_from_xls(path):
+    """อ่านไฟล์บุ๊คต้นฉบับ (.xls) โดยตรง แล้วคำนวณยอดคงเหลือเอง (ใช้ตรรกะเดียวกับ
+    build_booking_balance_report.py) — ไม่ต้องพึ่งค่าที่ cache ไว้ใน .xlsx / ไม่ต้องเปิด Excel ก่อน
+    """
+    import build_booking_balance_report as bbr
+
+    headers, rows = bbr.read_xls(path)
+    recs, _ = bbr.build_records(headers, rows)
+
+    def raw_at(r, name):
+        i = headers.index(name)
+        return r["raw"][i]
+
+    out = []
+    for r in recs:
+        rem = dict(zip(TYPE_COLS, r["remaining"]))
+        out.append({
+            "bk": r["bk"],
+            "vsl": r["vsl"],
+            "voy": r["voy"],
+            "etd": fmt_dt(raw_at(r, "ETD")),
+            "por": str(raw_at(r, "POR") or "").strip(),
+            "lod": str(raw_at(r, "LOD") or "").strip(),
+            "dis": str(raw_at(r, "DIS") or "").strip(),
+            "tpsz": r["tpsz"],
+            "pucode": r["code"],
+            "puname": r["name"],
+            "trandt": fmt_dt(raw_at(r, "TRAN DT")),
+            "cust": str(raw_at(r, "ORG CUST") or "").strip(),
+            "commodity": str(raw_at(r, "COMMODITY") or "").strip(),
+            "traffic": str(raw_at(r, "TRAFFIC ORDER") or "").strip(),
+            "group": bbr.group_of(r["code"]),
+            "booked_qty": num(r["booked"]),
+            "pickup_qty": num(r["pickup_qty"]),
+            "balance": num(r["balance"]),
+            "rem": {t: num(v) for t, v in rem.items()},
+        })
     return out
 
 
@@ -384,14 +426,17 @@ def main():
         src = sys.argv[1]
     else:
         cands = (glob.glob("*Balance Summary*Copy*.xlsx") or glob.glob("*Balance Summary*.xlsx")
-                 or glob.glob("output/*Balance Summary*.xlsx"))
+                 or glob.glob("output/*Balance Summary*.xlsx") or glob.glob("*PD*.xls"))
         if not cands:
-            raise SystemExit("ระบุ path ไฟล์ .xlsx (ชีต Data) เป็น argument")
+            raise SystemExit("ระบุ path ไฟล์ .xls ต้นฉบับ หรือ .xlsx (ชีต Data) เป็น argument")
         src = cands[0]
     src = os.path.abspath(src)
     print(f"[src] {src}")
 
-    recs = load_rows(src)
+    if src.lower().endswith(".xls"):
+        recs = load_rows_from_xls(src)  # คำนวณเองจากไฟล์ต้นฉบับ ไม่ต้องพึ่ง Excel
+    else:
+        recs = load_rows(src)
     if not recs:
         raise SystemExit("อ่านข้อมูลไม่ได้ — เปิดไฟล์ .xlsx ใน Excel แล้ว Save 1 ครั้งก่อน (ต้องมีค่าที่คำนวณแล้ว)")
     print(f"[data] {len(recs)} รายการค้างรับ, ตู้รวม {sum(r['balance'] for r in recs)}")
