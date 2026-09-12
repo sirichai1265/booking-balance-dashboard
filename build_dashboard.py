@@ -144,7 +144,7 @@ HTML_TEMPLATE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Booking Balance Dashboard</title>
+<title>Booking Pending Pickup</title>
 <style>
   :root{
     --bg:#f4f6f9; --card:#ffffff; --ink:#1f2937; --muted:#6b7280;
@@ -160,10 +160,9 @@ HTML_TEMPLATE = r"""<!doctype html>
   header .sub{opacity:.8;font-size:12.5px;margin-top:3px}
   header .header-right{display:flex;align-items:center;gap:16px;flex:none}
   header .clock{text-align:right;flex:none}
-  header .clock .time{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
-  header .clock .date{opacity:.8;font-size:12.5px;margin-top:3px}
+  header .clock .date{opacity:.8;font-size:13px}
   header .logo{flex:none;background:#fff;padding:5px 10px;border-radius:6px;display:flex;align-items:center}
-  header .logo img{height:32px;display:block}
+  header .logo img{height:88px;display:block}
   .wrap{padding:18px 22px 60px}
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
@@ -213,12 +212,11 @@ HTML_TEMPLATE = r"""<!doctype html>
 <body>
 <header>
   <div>
-    <h1>Booking Balance Dashboard &mdash; บุ๊คที่ค้างรับ</h1>
+    <h1>Booking Pending Pickup</h1>
     <div class="sub">ที่มา: __SRC__ &nbsp;|&nbsp; สร้างเมื่อ __GEN__ &nbsp;|&nbsp; __NREC__ BK No ค้างรับ</div>
   </div>
   <div class="header-right">
     <div class="clock">
-      <div class="time" id="clockTime"></div>
       <div class="date" id="clockDate"></div>
     </div>
     <div class="logo"><img src="logo.png" alt="Heung-A Line"></div>
@@ -426,13 +424,7 @@ document.querySelectorAll('#tbl th[data-k]').forEach(th => {
 [q,fGroup,fPickup,fType].forEach(el => el.addEventListener('input', render));
 $('#clear').addEventListener('click', () => { q.value=''; fGroup.value=''; fPickup.value=''; fType.value=''; render(); });
 
-function tickClock(){
-  const now = new Date();
-  $('#clockTime').textContent = now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
-  $('#clockDate').textContent = now.toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
-}
-tickClock();
-setInterval(tickClock, 1000);
+$('#clockDate').textContent = new Date().toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
 drawKpis();
 document.querySelector('#tbl th[data-k="balance"]').classList.add('sortdesc');
