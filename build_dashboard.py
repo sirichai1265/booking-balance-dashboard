@@ -102,13 +102,16 @@ def load_rows(path):
     return out
 
 
-def load_rows_from_xls(path):
-    """อ่านไฟล์บุ๊คต้นฉบับ (.xls) โดยตรง แล้วคำนวณยอดคงเหลือเอง (ใช้ตรรกะเดียวกับ
+def load_rows_from_xls(paths):
+    """อ่านไฟล์บุ๊คต้นฉบับ (.xls) หนึ่งไฟล์ขึ้นไปโดยตรง แล้วคำนวณยอดคงเหลือเอง (ใช้ตรรกะเดียวกับ
     build_booking_balance_report.py) — ไม่ต้องพึ่งค่าที่ cache ไว้ใน .xlsx / ไม่ต้องเปิด Excel ก่อน
+    ถ้าใส่หลายไฟล์ จะรวมแถวโดย BK No (ไฟล์หลังทับไฟล์ก่อนถ้า BK No ซ้ำ) เหมือน build_booking_balance_report.py
     """
     import build_booking_balance_report as bbr
 
-    headers, rows = bbr.read_xls(path)
+    if isinstance(paths, str):
+        paths = [paths]
+    headers, rows, _info = bbr.merge_sources(paths)
     recs, _ = bbr.build_records(headers, rows)
 
     def raw_at(r, name):
@@ -549,20 +552,23 @@ def write_daily_booking_excel(recs, out_dir, src_name):
 
 def main():
     if len(sys.argv) > 1:
-        src = sys.argv[1]
+        srcs = sys.argv[1:]
     else:
         cands = (glob.glob("*Balance Summary*Copy*.xlsx") or glob.glob("*Balance Summary*.xlsx")
                  or glob.glob("output/*Balance Summary*.xlsx") or glob.glob("*PD*.xls"))
         if not cands:
-            raise SystemExit("ระบุ path ไฟล์ .xls ต้นฉบับ หรือ .xlsx (ชีต Data) เป็น argument")
-        src = cands[0]
-    src = os.path.abspath(src)
-    print(f"[src] {src}")
+            raise SystemExit("ระบุ path ไฟล์ .xls ต้นฉบับ (ใส่ได้หลายไฟล์เพื่อรวม/เพิ่มข้อมูล) หรือ .xlsx (ชีต Data) เป็น argument")
+        srcs = [cands[0]]
+    srcs = [os.path.abspath(s) for s in srcs]
+    src_label = " + ".join(os.path.basename(s) for s in srcs)
+    print(f"[src] {src_label}")
 
-    if src.lower().endswith(".xls"):
-        recs = load_rows_from_xls(src)  # คำนวณเองจากไฟล์ต้นฉบับ ไม่ต้องพึ่ง Excel
+    if all(s.lower().endswith(".xls") for s in srcs):
+        recs = load_rows_from_xls(srcs)  # คำนวณเองจากไฟล์ต้นฉบับ ไม่ต้องพึ่ง Excel (รวมหลายไฟล์ได้)
+    elif len(srcs) == 1:
+        recs = load_rows(srcs[0])
     else:
-        recs = load_rows(src)
+        raise SystemExit("รวมหลายไฟล์ได้เฉพาะไฟล์ .xls ต้นฉบับเท่านั้น (ไม่ใช่ .xlsx สรุป)")
     if not recs:
         raise SystemExit("อ่านข้อมูลไม่ได้ — เปิดไฟล์ .xlsx ใน Excel แล้ว Save 1 ครั้งก่อน (ต้องมีค่าที่คำนวณแล้ว)")
     print(f"[data] {len(recs)} รายการค้างรับ, ตู้รวม {sum(r['balance'] for r in recs)}")
@@ -571,17 +577,17 @@ def main():
     html_out = (HTML_TEMPLATE
                 .replace("__DATA__", json.dumps(recs, ensure_ascii=False))
                 .replace("__TYPES__", json.dumps(TYPE_COLS))
-                .replace("__SRC__", html.escape(os.path.basename(src)))
+                .replace("__SRC__", html.escape(src_label))
                 .replace("__GEN__", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
                 .replace("__NREC__", str(len(recs))))
 
-    out = os.path.join(os.path.dirname(src), "Booking Balance Dashboard.html")
+    out = os.path.join(os.path.dirname(srcs[0]), "Booking Balance Dashboard.html")
     with open(out, "w", encoding="utf-8") as f:
         f.write(html_out)
     print(f"[out] {out}")
 
     here = os.path.dirname(os.path.abspath(__file__))
-    xlsx_path = write_daily_booking_excel(recs, here, os.path.basename(src))
+    xlsx_path = write_daily_booking_excel(recs, here, src_label)
     print(f"[out] {xlsx_path}")
 
 

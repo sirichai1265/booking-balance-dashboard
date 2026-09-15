@@ -15,6 +15,8 @@ build_booking_balance_report.py
 
 การใช้งาน:
     python build_booking_balance_report.py "9-9-PD - Copy.xls"
+    python build_booking_balance_report.py "9-14-PD.xls" "9-15-BKGWK.xls"   # รวม/เพิ่มข้อมูลจากหลายไฟล์
+                                                                             # (ไฟล์หลังทับ BK No ซ้ำของไฟล์ก่อน)
     python build_booking_balance_report.py               # จะหาไฟล์ *PD*.xls ในโฟลเดอร์นี้เอง
 
 ต้องมี lib:  pip install xlrd openpyxl
@@ -281,13 +283,12 @@ def _force_recalc(wb):
         pass
 
 
-def build_combined(recs, src_path, out_path):
+def build_combined(recs, headers, name_by_code, out_path, src_label):
     wb = Workbook()
 
     # ---------- ชีต 1 : Data ----------
     ws = wb.active
     ws.title = "Data"
-    headers, _ = read_xls(src_path)
     n_orig = len(headers)
 
     # ตำแหน่งคอลัมน์บนชีต Data
@@ -308,7 +309,7 @@ def build_combined(recs, src_path, out_path):
     full_headers = list(headers) + ["Balance (Booked - Pickup)", "Group"] + [f"{t} Remaining" for t in TYPE_COLS]
     ncol = len(full_headers)
 
-    put_title(ws, f"DATA — Outstanding bookings (Balance > 0)   |   source: {os.path.basename(src_path)}", ncol)
+    put_title(ws, f"DATA — Outstanding bookings (Balance > 0)   |   source: {src_label}", ncol)
     for c, h in enumerate(full_headers, start=1):
         ws.cell(row=2, column=c, value=h)
     style_header_row(ws, 2, ncol)
@@ -406,9 +407,6 @@ def build_combined(recs, src_path, out_path):
         ws3.cell(row=2, column=c, value=h)
     style_header_row(ws3, 2, ncol3)
 
-    # ชื่อ Pickup Name จริงจากไฟล์ต้นฉบับ (เผื่อบางรหัสไม่มีแถวค้างรอบนี้)
-    name_by_code = full_name_map(src_path)
-
     codes_present = sorted({rec["code"] for rec in recs_sorted if rec["code"] != ""})
     entries = []
     used = set()
@@ -489,8 +487,10 @@ def _flag_note(ws, rows, r, c):
                    + ", ".join(bad))).font = F_BOLD
 
 
-def full_name_map(src_path):
-    headers, rows = read_xls(src_path)
+def full_name_map(headers, rows):
+    """สร้าง mapping รหัส Pickup -> ชื่อ Pickup จาก (headers, rows) ที่โหลดไว้แล้ว
+    (เผื่อบางรหัสไม่มีแถวค้างรอบนี้ เช่น BKK04 ที่ถูก merge เข้ากับ BKK01)
+    """
     i_code = headers.index("Pickup")
     i_name = headers.index("Pickup Name")
     out = {}
@@ -505,8 +505,7 @@ def full_name_map(src_path):
 # ----------------------------------------------------------------------------
 # OUTPUT 2 : ไฟล์แยกตาม Pickup Name
 # ----------------------------------------------------------------------------
-def build_per_pickup(recs, src_path, entries, name_by_code, outdir):
-    headers, _ = read_xls(src_path)
+def build_per_pickup(recs, headers, entries, name_by_code, outdir):
     i_pucode = headers.index("Pickup")
     i_puname = headers.index("Pickup Name")
     drop = {i_pucode, i_puname}
@@ -588,20 +587,55 @@ def build_per_pickup(recs, src_path, entries, name_by_code, outdir):
 # ----------------------------------------------------------------------------
 # main
 # ----------------------------------------------------------------------------
+def merge_sources(paths):
+    """อ่านไฟล์ .xls หนึ่งไฟล์ขึ้นไปแล้วรวมแถวเข้าด้วยกันโดย key = BK No
+    ไฟล์หลัง ๆ ใน list (ลำดับตามที่ระบุใน argument) จะ override แถวที่ BK No ซ้ำกับไฟล์ก่อนหน้า
+    — ใช้เมื่อมีไฟล์เสริม เช่น ไฟล์รายสัปดาห์ ที่ต้องเอามา "เพิ่มข้อมูล" ทับไฟล์รายวันเดิม
+    คืน (headers, merged_rows, info) โดย info คือ list ของ (ชื่อไฟล์, จำนวนแถว, BK No ใหม่, BK No ที่ถูกทับ)
+    """
+    headers = None
+    merged = {}
+    info = []
+    for p in paths:
+        h, rows = read_xls(p)
+        if headers is None:
+            headers = h
+        elif h != headers:
+            raise SystemExit(f"โครงสร้างคอลัมน์ของ {p} ไม่ตรงกับไฟล์แรก — รวมไฟล์นี้ไม่ได้")
+        i_bk = h.index("BK No")
+        new_bk = updated_bk = 0
+        for row in rows:
+            bk = str(row[i_bk]).strip()
+            if not bk:
+                continue
+            if bk in merged:
+                updated_bk += 1
+            else:
+                new_bk += 1
+            merged[bk] = row
+        info.append((os.path.basename(p), len(rows), new_bk, updated_bk))
+    return headers, list(merged.values()), info
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     if len(sys.argv) > 1:
-        src = sys.argv[1]
+        srcs = sys.argv[1:]
     else:
         cands = glob.glob(os.path.join(here, "*PD*.xls")) + glob.glob(os.path.join(here, "*PD*.xls*"))
         if not cands:
-            raise SystemExit("ระบุไฟล์ .xls เป็น argument หรือวางไฟล์ *PD*.xls ไว้ในโฟลเดอร์นี้")
-        src = cands[0]
-    src = os.path.abspath(src)
-    print(f"[src] {src}")
+            raise SystemExit("ระบุไฟล์ .xls เป็น argument (ใส่ได้หลายไฟล์เพื่อรวม/เพิ่มข้อมูล) หรือวางไฟล์ *PD*.xls ไว้ในโฟลเดอร์นี้")
+        srcs = [cands[0]]
+    srcs = [os.path.abspath(s) for s in srcs]
+    src_label = " + ".join(os.path.basename(s) for s in srcs)
+    print(f"[src] {src_label}")
 
-    # ---- STAGE 1 : ดึงข้อมูลดิบ (ไม่ใช้ AI) ----
-    headers, rows = read_xls(src)
+    # ---- STAGE 1 : ดึงข้อมูลดิบ (ไม่ใช้ AI) — รวมหลายไฟล์ถ้ามี ----
+    headers, rows, merge_info = merge_sources(srcs)
+    for name, n, new_bk, upd_bk in merge_info:
+        print(f"[merge] {name}: {n} แถว (BK No ใหม่ {new_bk}, ทับของเดิม {upd_bk})")
+    if len(srcs) > 1:
+        print(f"[merge] รวมทั้งหมด {len(rows)} BK No (unique)")
     ex_dir = os.path.join(here, "_extracted")
     csv_p, json_p = dump_extracted(headers, rows, ex_dir)
     print(f"[stage1] header {len(headers)} คอลัมน์, ข้อมูล {len(rows)} แถว")
@@ -623,11 +657,12 @@ def main():
 
     out_dir = os.path.join(here, "output")
     os.makedirs(out_dir, exist_ok=True)
+    name_by_code = full_name_map(headers, rows)
     combined = os.path.join(out_dir, "Booking Balance Summary.xlsx")
-    combined, entries, name_by_code = build_combined(recs, src, combined)
+    combined, entries, name_by_code = build_combined(recs, headers, name_by_code, combined, src_label)
     print(f"[out1] {combined}")
 
-    made, grand = build_per_pickup(recs, src, entries, name_by_code, out_dir)
+    made, grand = build_per_pickup(recs, headers, entries, name_by_code, out_dir)
     for p in made:
         print(f"[out2] {p}")
 
