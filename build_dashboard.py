@@ -31,6 +31,15 @@ import openpyxl
 
 TYPE_COLS = ["GP22", "GP42", "GP45", "RE22", "RE45", "UT22", "UT42", "PC22", "PC42"]
 
+# BKK01 (PAT TERMINAL 1) และ BKK04 (PAT TERMINAL 2) แสดงเป็น Pickup Name เดียวกันเสมอ
+# (ให้ตรงกับไฟล์ Excel ที่รวมสอง depot นี้เป็นไฟล์เดียวอยู่แล้ว)
+MERGED_PUNAME_CODES = {"BKK01", "BKK04"}
+MERGED_PUNAME_DISPLAY = "PAT TERMINAL 1 & 2 (PORT AUTHORITY OF THAILAND)"
+
+
+def merged_puname(pucode, puname):
+    return MERGED_PUNAME_DISPLAY if pucode in MERGED_PUNAME_CODES else puname
+
 
 def num(v):
     try:
@@ -84,7 +93,7 @@ def load_rows(path):
             "dis": str(g(row, "DIS") or "").strip(),
             "tpsz": str(g(row, "TPSZ") or "").strip(),
             "pucode": str(row[i_pucode] or "").strip(),
-            "puname": str(g(row, "Pickup Name") or "").strip(),
+            "puname": merged_puname(str(row[i_pucode] or "").strip(), str(g(row, "Pickup Name") or "").strip()),
             "trandt": fmt_dt(g(row, "TRAN DT")),
             "cust": str(g(row, "ORG CUST") or "").strip(),
             "commodity": str(g(row, "COMMODITY") or "").strip(),
@@ -131,7 +140,7 @@ def load_rows_from_xls(paths):
             "dis": str(raw_at(r, "DIS") or "").strip(),
             "tpsz": r["tpsz"],
             "pucode": r["code"],
-            "puname": r["name"],
+            "puname": merged_puname(r["code"], r["name"]),
             "trandt": fmt_dt(raw_at(r, "TRAN DT")),
             "cust": str(raw_at(r, "ORG CUST") or "").strip(),
             "commodity": str(raw_at(r, "COMMODITY") or "").strip(),
