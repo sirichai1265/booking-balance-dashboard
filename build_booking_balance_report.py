@@ -11,7 +11,11 @@ build_booking_balance_report.py
   STAGE 2            : คำนวณยอดคงเหลือต่อ BK No, กรองเฉพาะที่ยังค้าง (Balance > 0),
                         ทำความสะอาดข้อมูล, แล้วสร้างไฟล์ Excel แบบผูกสูตร:
                           - 1 ไฟล์รวม 3 ชีต : Data / Balance Summary / Summary
-                          - ไฟล์แยกตาม Pickup Name : "bkg pending - <ชื่อ>.xlsx"
+                          - ไฟล์แยกตาม Pickup Name : "bkg pending - <ชื่อ>.xlsx" — Calibri 11 ทั้งไฟล์,
+                            row height 13 ทุกแถว, ไฮไลต์ทั้งแถวเหลือง/เขียวตาม TPSZ (20RF,R40H / 20OT,20FR,
+                            40OT,40FR), TRAFFIC ORDER ที่มีคำว่า precool เป็นตัวแดงหนา, ตัดคอลัมน์ DOC CUST
+                            เสมอ, ตัด COMMON REMARK ยกเว้นไฟล์กลุ่ม BKK01/BKK02/BKK04/LCH55, ปิดท้ายด้วย
+                            สรุปยอดรวม + แยกตาม Pickup Name (กรณีไฟล์รวมหลาย code เช่น BKK01+BKK04)
 
 การใช้งาน:
     python build_booking_balance_report.py "9-9-PD - Copy.xls"
@@ -65,6 +69,24 @@ FILL_FLAG = PatternFill("solid", fgColor=C_FLAG_BG)
 
 # ชื่อ Pickup Name รวม สำหรับ BKK01 + BKK04 (รวมเป็นแถว/ไฟล์เดียวเสมอ)
 BKK0104_DISPLAY = "PAT TERMINAL 1 & 2 (PORT AUTHORITY OF THAILAND)"
+
+# ---- กติกาเฉพาะไฟล์แยกตาม Pickup depot (bkg pending - <ชื่อ>.xlsx) ----
+PRECOOL_RE = re.compile(r"pre-?cool", re.IGNORECASE)
+COMMON_REMARK_KEEP_CODES = {"BKK01", "BKK02", "BKK04", "LCH55"}
+C_HL_YELLOW = "FFFF00"
+C_HL_GREEN = "92D050"
+
+
+def tpsz_highlight_color(tpsz):
+    """คืนสี fill ถ้า TPSZ เข้าเงื่อนไขไฮไลต์ทั้งแถว ไม่งั้นคืน None
+    เหลือง: มี 20RF หรือ R40H  ;  เขียว: มี 20OT, 20FR, 40OT หรือ 40FR
+    """
+    s = str(tpsz or "").upper()
+    if "20RF" in s or "R40H" in s:
+        return C_HL_YELLOW
+    if any(tok in s for tok in ("20OT", "20FR", "40OT", "40FR")):
+        return C_HL_GREEN
+    return None
 
 
 # ----------------------------------------------------------------------------
@@ -506,24 +528,19 @@ def full_name_map(headers, rows):
 # OUTPUT 2 : ไฟล์แยกตาม Pickup Name
 # ----------------------------------------------------------------------------
 def build_per_pickup(recs, headers, entries, name_by_code, outdir):
+    # ฟอนต์ Calibri 11 เฉพาะไฟล์ชุดนี้ (ไม่แตะ F_CELL/F_HEADER/F_BOLD ที่ไฟล์รวมใช้ร่วมกัน)
+    pp_font = Font(name=FONT_NAME, size=11)
+    pp_font_bold = Font(name=FONT_NAME, size=11, bold=True)
+    pp_font_header = Font(name=FONT_NAME, size=11, bold=True, color=C_WHITE)
+    pp_font_precool = Font(name=FONT_NAME, size=11, bold=True, color="FF0000")
+    ROW_H = 13
+
     i_pucode = headers.index("Pickup")
     i_puname = headers.index("Pickup Name")
-    drop = {i_pucode, i_puname}
-    kept_idx = [i for i in range(len(headers)) if i not in drop]
-    kept_headers = [headers[i] for i in kept_idx]
-
-    # ตำแหน่งคอลัมน์ type/pickup ในไฟล์ย่อย (1-based หลัง drop)
-    type_pos = [kept_headers.index(t) + 1 for t in TYPE_COLS]
-    Lt = [get_column_letter(p) for p in type_pos]
-    puqty_pos = len(kept_headers) - 1          # Pickup(qty) อยู่ก่อน Return
-    Lq = get_column_letter(puqty_pos)
-    col_bal = len(kept_headers) + 1
-    Lb = get_column_letter(col_bal)
-    col_rem0 = len(kept_headers) + 2
-    Lr = [get_column_letter(col_rem0 + k) for k in range(9)]
-    ncol = col_rem0 + 8
-
-    out_headers = kept_headers + ["Balance (Booked - Pickup)"] + [f"{t} Remaining" for t in TYPE_COLS]
+    i_doc = headers.index("DOC CUST")
+    i_common = headers.index("COMMON REMARK")
+    i_tpsz = headers.index("TPSZ")
+    i_traffic = headers.index("TRAFFIC ORDER")
 
     os.makedirs(outdir, exist_ok=True)
     made = []
@@ -535,44 +552,122 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
             continue
         sub.sort(key=lambda x: x["bk"])
 
+        # ตัด Pickup code/name/DOC CUST เสมอ ; ตัด COMMON REMARK ยกเว้นกลุ่ม BKK01/BKK02/BKK04/LCH55
+        drop = {i_pucode, i_puname, i_doc}
+        if not (codes & COMMON_REMARK_KEEP_CODES):
+            drop.add(i_common)
+        kept_idx = [i for i in range(len(headers)) if i not in drop]
+        kept_headers = [headers[i] for i in kept_idx]
+
+        type_pos = [kept_headers.index(t) + 1 for t in TYPE_COLS]        # 1-based
+        Lt = [get_column_letter(p) for p in type_pos]
+        puqty_pos = len(kept_headers) - 1          # Pickup(qty) อยู่ก่อน Return
+        Lq = get_column_letter(puqty_pos)
+        col_bal = len(kept_headers) + 1
+        col_rem0 = len(kept_headers) + 2
+        ncol = col_rem0 + 8
+        pos_traffic = kept_headers.index("TRAFFIC ORDER") + 1
+
+        out_headers = kept_headers + ["Balance (Booked - Pickup)"] + [f"{t} Remaining" for t in TYPE_COLS]
+
         wb = Workbook()
         ws = wb.active
         ws.title = "Pending"
         put_title(ws, f"BKG PENDING — {e['name']}   ({'+'.join(e['codes'])})", ncol)
         for c, h in enumerate(out_headers, start=1):
-            ws.cell(row=2, column=c, value=h)
-        style_header_row(ws, 2, ncol)
+            cell = ws.cell(row=2, column=c, value=h)
+            cell.font = pp_font_header
+            cell.fill = FILL_HEADER
+            cell.border = BORDER
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
         for idx, rec in enumerate(sub):
             r = idx + 3
+            row_fill_color = tpsz_highlight_color(rec["raw"][i_tpsz])
+            row_fill = PatternFill("solid", fgColor=row_fill_color) if row_fill_color else None
             kept_vals = [rec["raw"][i] for i in kept_idx]
             for c, v in enumerate(kept_vals, start=1):
-                write_cell(ws, r, c, _num(v))
-            write_cell(ws, r, col_bal, f"=SUM({Lt[0]}{r}:{Lt[-1]}{r})-{Lq}{r}")
+                cell = ws.cell(row=r, column=c, value=_num(v))
+                cell.font = pp_font
+                cell.border = BORDER
+                if row_fill:
+                    cell.fill = row_fill
+            if PRECOOL_RE.search(str(rec["raw"][i_traffic] or "")):
+                ws.cell(row=r, column=pos_traffic).font = pp_font_precool
+
+            bal_cell = ws.cell(row=r, column=col_bal, value=f"=SUM({Lt[0]}{r}:{Lt[-1]}{r})-{Lq}{r}")
+            bal_cell.font = pp_font
+            bal_cell.border = BORDER
+            if row_fill:
+                bal_cell.fill = row_fill
             for k in range(9):
                 if k == 0:
                     f = f"=MAX(0,{Lt[0]}{r}-MAX(0,{Lq}{r}))"
                 else:
                     f = f"=MAX(0,{Lt[k]}{r}-MAX(0,{Lq}{r}-SUM({Lt[0]}{r}:{Lt[k-1]}{r})))"
-                write_cell(ws, r, col_rem0 + k, f)
+                rc = ws.cell(row=r, column=col_rem0 + k, value=f)
+                rc.font = pp_font
+                rc.border = BORDER
+                if row_fill:
+                    rc.fill = row_fill
+            ws.row_dimensions[r].height = ROW_H
 
         tr = len(sub) + 3
-        write_cell(ws, tr, 1, "TOTAL", bold=True, fill=FILL_TOTAL)
-        for c in range(2, ncol + 1):
+        for c in range(1, ncol + 1):
             L = get_column_letter(c)
-            if c in type_pos or c == puqty_pos or c == col_bal or c >= col_rem0:
-                write_cell(ws, tr, c, f"=SUM({L}3:{L}{tr-1})", bold=True, fill=FILL_TOTAL)
-            else:
-                write_cell(ws, tr, c, None, bold=True, fill=FILL_TOTAL)
+            cell = ws.cell(row=tr, column=c)
+            cell.font = pp_font_bold
+            cell.fill = FILL_TOTAL
+            cell.border = BORDER
+            if c == 1:
+                cell.value = "TOTAL"
+            elif c in type_pos or c == puqty_pos or c == col_bal or c >= col_rem0:
+                cell.value = f"=SUM({L}3:{L}{tr - 1})"
+        ws.row_dimensions[tr].height = ROW_H
+
+        # ---- สรุปยอดบุ๊คทั้งหมด + แยกตาม pickup name (เผื่อไฟล์รวมหลาย code เช่น BKK01+BKK04) ----
+        by_name = {}
+        for rec in sub:
+            n, b = by_name.setdefault(rec["name"], [0, 0.0])
+            by_name[rec["name"]][0] = n + 1
+            by_name[rec["name"]][1] = b + rec["balance"]
+
+        sr = tr + 3
+        for c, h in enumerate(["Pickup Name", "Number of Records", "Total Balance"], start=1):
+            cell = ws.cell(row=sr, column=c, value=h)
+            cell.font = pp_font_bold
+            cell.fill = FILL_GROUPSUM
+            cell.border = BORDER
+        ws.row_dimensions[sr].height = ROW_H
+
+        rr = sr + 1
+        for name in sorted(by_name):
+            n, b = by_name[name]
+            for c, v in enumerate([name, n, b], start=1):
+                cell = ws.cell(row=rr, column=c, value=v)
+                cell.font = pp_font
+                cell.border = BORDER
+            ws.row_dimensions[rr].height = ROW_H
+            rr += 1
+
+        for c, v in enumerate(["สรุปยอดบุ๊คทั้งหมด", len(sub), sum(rec["balance"] for rec in sub)], start=1):
+            cell = ws.cell(row=rr, column=c, value=v)
+            cell.font = pp_font_bold
+            cell.fill = FILL_TOTAL
+            cell.border = BORDER
+        ws.row_dimensions[rr].height = ROW_H
 
         ws.freeze_panes = "A3"
-        ws.auto_filter.ref = f"A2:{get_column_letter(ncol)}{tr-1}"
+        ws.auto_filter.ref = f"A2:{get_column_letter(ncol)}{tr - 1}"
         widths = []
         for h in kept_headers:
             widths.append({"BK No": 18, "COMMON REMARK": 34, "TRAFFIC ORDER": 28,
-                           "COMMODITY": 24, "DOC CUST": 26, "ORG CUST": 26}.get(h, 11))
+                           "COMMODITY": 24, "ORG CUST": 26}.get(h, 11))
         widths += [22] + [15] * 9
         set_widths(ws, widths)
+
+        ws.row_dimensions[1].height = ROW_H
+        ws.row_dimensions[2].height = ROW_H
 
         _force_recalc(wb)
         fname = f"bkg pending - {sanitize_filename(e['name'])}.xlsx"
