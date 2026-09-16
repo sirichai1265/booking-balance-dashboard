@@ -578,7 +578,7 @@ def main():
                 .replace("__DATA__", json.dumps(recs, ensure_ascii=False))
                 .replace("__TYPES__", json.dumps(TYPE_COLS))
                 .replace("__SRC__", html.escape(src_label))
-                .replace("__GEN__", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+                .replace("__GEN__", datetime.datetime.now().strftime("%Y-%m-%d"))
                 .replace("__NREC__", str(len(recs))))
 
     out = os.path.join(os.path.dirname(srcs[0]), "Booking Balance Dashboard.html")
