@@ -9,7 +9,8 @@ build_booking_balance_report.py
   STAGE 1 (ไม่ใช้ AI) : อ่านไฟล์ .xls ด้วย xlrd -> ดึง text/ข้อมูลดิบออกมาเป็น
                         CSV + JSON (โฟลเดอร์ _extracted/) เพื่อให้ตรวจ/ให้ AI วิเคราะห์ได้
   STAGE 2            : คำนวณยอดคงเหลือต่อ BK No, กรองเฉพาะที่ยังค้าง (Balance > 0),
-                        ทำความสะอาดข้อมูล, แล้วสร้างไฟล์ Excel แบบผูกสูตร:
+                        ทำความสะอาดข้อมูล, แล้วสร้างไฟล์ Excel แบบผูกสูตร ลงโฟลเดอร์ที่ชื่อตรงกับ
+                        ไฟล์ต้นฉบับ (เช่น ไฟล์ "9-17-PD.xls" -> โฟลเดอร์ "9-17-PD/"):
                           - 1 ไฟล์รวม 3 ชีต : Data / Balance Summary / Summary
                           - ไฟล์แยกตาม Pickup Name : "bkg pending - <ชื่อ>.xlsx" — Calibri 11 ทั้งไฟล์,
                             row height 13 ทุกแถว, ไฮไลต์ทั้งแถวเหลือง/เขียวตาม TPSZ (20RF,R40H / 20OT,20FR,
@@ -750,7 +751,8 @@ def main():
     total_balance = sum(rec["balance"] for rec in recs)
     print(f"[stage2] GRAND TOTAL balance = {total_balance:.0f}")
 
-    out_dir = os.path.join(here, "output")
+    # ชื่อโฟลเดอร์ผลลัพธ์ = ชื่อไฟล์ต้นฉบับ (ไฟล์แรกถ้าใส่หลายไฟล์) ไม่ใช้ "output" คงที่อีกต่อไป
+    out_dir = os.path.join(here, os.path.splitext(os.path.basename(srcs[0]))[0])
     os.makedirs(out_dir, exist_ok=True)
     name_by_code = full_name_map(headers, rows)
     combined = os.path.join(out_dir, "Booking Balance Summary.xlsx")

@@ -16,7 +16,9 @@ build_dashboard.py
 - ถ้าใส่ไฟล์ .xlsx (ชีต Data): อ่านค่าที่ Excel คำนวณไว้แล้ว (data_only) — ต้องเปิดไฟล์ใน Excel แล้ว Save
   หนึ่งครั้งก่อน ไม่งั้นค่าจะว่าง
 ผลลัพธ์:
-  - Booking Balance Dashboard.html  (ในโฟลเดอร์เดียวกับไฟล์ต้นทาง)
+  - <ชื่อไฟล์ต้นฉบับ>/Booking Balance Dashboard.html  (โฟลเดอร์ผลลัพธ์ชื่อตรงกับไฟล์ต้นฉบับ เช่น
+    ไฟล์ "9-17-PD.xls" -> โฟลเดอร์ "9-17-PD/" ในโปรเจกต์นี้ — ให้ตรงกับโฟลเดอร์ที่
+    build_booking_balance_report.py ใช้)
   - Daily Booking <YYYY-MM-DD>.xlsx (รูปแบบ "daily booking" 1 ชีต — บันทึกลงโฟลเดอร์โปรเจกต์นี้เสมอ
     ไม่ว่าไฟล์ต้นทางจะอยู่ที่ไหน; แทนปุ่มดาวน์โหลด Excel บนเว็บที่เอาออกแล้ว)
 """
@@ -564,7 +566,7 @@ def main():
         srcs = sys.argv[1:]
     else:
         cands = (glob.glob("*Balance Summary*Copy*.xlsx") or glob.glob("*Balance Summary*.xlsx")
-                 or glob.glob("output/*Balance Summary*.xlsx") or glob.glob("*PD*.xls"))
+                 or glob.glob("*/*Balance Summary*.xlsx") or glob.glob("*PD*.xls"))
         if not cands:
             raise SystemExit("ระบุ path ไฟล์ .xls ต้นฉบับ (ใส่ได้หลายไฟล์เพื่อรวม/เพิ่มข้อมูล) หรือ .xlsx (ชีต Data) เป็น argument")
         srcs = [cands[0]]
@@ -590,12 +592,16 @@ def main():
                 .replace("__GEN__", datetime.datetime.now().strftime("%Y-%m-%d"))
                 .replace("__NREC__", str(len(recs))))
 
-    out = os.path.join(os.path.dirname(srcs[0]), "Booking Balance Dashboard.html")
+    here = os.path.dirname(os.path.abspath(__file__))
+    # โฟลเดอร์ผลลัพธ์ = ชื่อไฟล์ต้นฉบับ (ให้ตรงกับโฟลเดอร์ที่ build_booking_balance_report.py ใช้)
+    out_dir = os.path.join(here, os.path.splitext(os.path.basename(srcs[0]))[0])
+    os.makedirs(out_dir, exist_ok=True)
+
+    out = os.path.join(out_dir, "Booking Balance Dashboard.html")
     with open(out, "w", encoding="utf-8") as f:
         f.write(html_out)
     print(f"[out] {out}")
 
-    here = os.path.dirname(os.path.abspath(__file__))
     xlsx_path = write_daily_booking_excel(recs, here, src_label)
     print(f"[out] {xlsx_path}")
 

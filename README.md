@@ -9,22 +9,22 @@
 
 | ไฟล์ | หน้าที่ |
 |---|---|
-| `build_booking_balance_report.py` | อ่าน `.xls` ต้นฉบับ (xlrd) → ดึงข้อมูลดิบ → คำนวณยอดคงเหลือต่อ BK No → สร้าง Excel ผูกสูตร (`output/Booking Balance Summary.xlsx`) + ไฟล์แยกตาม Pickup depot |
-| `build_dashboard.py` | สร้าง `output/Booking Balance Dashboard.html` (dashboard ค้นหา/กรอง/sort แบบ self-contained) — อ่านได้ทั้งจากไฟล์ `.xls` ต้นฉบับโดยตรง (คำนวณเอง ไม่ต้องพึ่ง Excel) หรือจากไฟล์ `.xlsx` สรุปที่เปิด/Save ด้วย Excel แล้ว พร้อมกันนั้นจะสร้าง `Daily Booking <วันที่>.xlsx` (รูปแบบ 1 ชีตครบทุกฟิลด์ จัดกลุ่ม BKK/LCH) ไว้ในโฟลเดอร์นี้ (PENDING BKG) ให้ทุกครั้งที่รัน — ไม่มีปุ่มดาวน์โหลดบนเว็บแล้ว |
+| `build_booking_balance_report.py` | อ่าน `.xls` ต้นฉบับ (xlrd) → ดึงข้อมูลดิบ → คำนวณยอดคงเหลือต่อ BK No → สร้าง Excel ผูกสูตร (`Booking Balance Summary.xlsx`) + ไฟล์แยกตาม Pickup depot ลงในโฟลเดอร์ที่ตั้งชื่อตามไฟล์ต้นฉบับ (เช่น `9-17-PD.xls` → โฟลเดอร์ `9-17-PD/`) |
+| `build_dashboard.py` | สร้าง `Booking Balance Dashboard.html` (dashboard ค้นหา/กรอง/sort แบบ self-contained) ไว้ในโฟลเดอร์ชื่อเดียวกันข้างต้น — อ่านได้ทั้งจากไฟล์ `.xls` ต้นฉบับโดยตรง (คำนวณเอง ไม่ต้องพึ่ง Excel) หรือจากไฟล์ `.xlsx` สรุปที่เปิด/Save ด้วย Excel แล้ว พร้อมกันนั้นจะสร้าง `Daily Booking <วันที่>.xlsx` (รูปแบบ 1 ชีตครบทุกฟิลด์ จัดกลุ่ม BKK/LCH) ไว้ที่โฟลเดอร์นี้ (PENDING BKG) ให้ทุกครั้งที่รัน — ไม่มีปุ่มดาวน์โหลดบนเว็บแล้ว |
 | `index.html` | สำเนาของ dashboard ที่ใช้ deploy บน GitHub Pages (root ของเว็บ) |
-| `output/` | ไฟล์ผลลัพธ์ (Excel รายงาน + Dashboard HTML) |
+| `output/` | สำเนา "คงที่" ของผลลัพธ์ล่าสุดที่ track ใน git (sync มาจากโฟลเดอร์ชื่อวันที่ด้านบนหลังรันเสร็จ) — ใช้เพื่อให้ GitHub Pages/README มีที่อ้างอิงคงที่ ไม่ต้องไล่ตามชื่อโฟลเดอร์ที่เปลี่ยนทุกวัน |
 | `Daily Booking <วันที่>.xlsx` | รายงานบุ๊คค้างรับรายวัน (ไม่ได้เก็บใน git — ดูหมายเหตุด้านล่าง) |
 
 ## วิธีใช้
 
 ```bash
 pip install xlrd openpyxl
-python build_booking_balance_report.py "9-12-PD - Copy.xls"   # สร้างรายงาน Excel
-python build_dashboard.py "9-12-PD - Copy.xls"                 # สร้าง dashboard จากไฟล์ต้นฉบับโดยตรง
-cp "output/Booking Balance Dashboard.html" index.html          # sync ขึ้น GitHub Pages
+python build_booking_balance_report.py "9-17-PD.xls"   # สร้างรายงาน Excel ลงโฟลเดอร์ "9-17-PD/"
+python build_dashboard.py "9-17-PD.xls"                 # สร้าง dashboard ลงโฟลเดอร์เดียวกัน
+cp "9-17-PD/Booking Balance Dashboard.html" index.html   # sync ขึ้น GitHub Pages
 ```
 
-เปิด `output/Booking Balance Dashboard.html` ในเบราว์เซอร์เพื่อค้นหา/กรองบุ๊คที่ค้างรับ
+เปิด `Booking Balance Dashboard.html` ในโฟลเดอร์ผลลัพธ์เพื่อค้นหา/กรองบุ๊คที่ค้างรับ
 (ค้นหาข้อความ, กรองตามโซน BKK/LCH, Pickup depot, ชนิดตู้, sort ทุกคอลัมน์, คลิก BK No เพื่อดูรายละเอียด)
 ถ้าต้องการไฟล์ Excel ไปทำงานต่อ ให้เปิด `Daily Booking <วันที่>.xlsx` ที่ script สร้างไว้ให้ในโฟลเดอร์นี้แทน
 
