@@ -533,7 +533,7 @@ ALIGN_LEFT = Alignment(horizontal="left", vertical="center", wrap_text=True)
 ALIGN_CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
 
-def _autofit_width(header_text, raw_values, floor=10, pad=2):
+def _autofit_width(header_text, raw_values, floor=1, pad=1):
     max_len = len(str(header_text))
     for v in raw_values:
         s = str(v)
