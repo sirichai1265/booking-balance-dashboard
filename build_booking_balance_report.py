@@ -696,6 +696,158 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
     return made, grand
 
 
+def build_all_pending(recs, headers, outdir):
+    """สร้าง 'bkg pending - all.xlsx' รวมบุ๊คค้างรับทุก depot ไว้ในไฟล์เดียว สไตล์เดียวกับ
+    ไฟล์แยกตาม depot (Tahoma 8, คอลัมน์ชิด, ไม่มีแถบหัวเรื่อง, unfreeze) แต่คง Pickup/Pickup Name
+    ไว้เพราะมีหลาย depot ปนกัน ; ไม่ใช่ Booking Balance Summary.xlsx (คนละไฟล์กัน)
+    """
+    pp_font = Font(name="Tahoma", size=8)
+    pp_font_bold = Font(name="Tahoma", size=8, bold=True)
+    pp_font_header = Font(name="Tahoma", size=8, bold=True, color=C_WHITE)
+    pp_font_precool = Font(name="Tahoma", size=8, bold=True, color="FF0000")
+    ROW_H = 13
+
+    i_doc = headers.index("DOC CUST")
+    i_tpsz = headers.index("TPSZ")
+    i_traffic = headers.index("TRAFFIC ORDER")
+    i_types = [headers.index(t) for t in TYPE_COLS]
+    pu_positions = [i for i, h in enumerate(headers) if h == "Pickup"]
+    i_puqty = pu_positions[-1]
+    i_return = headers.index("Return")
+
+    drop = {i_doc, i_puqty, i_return} | set(i_types)
+    kept_idx = [i for i in range(len(headers)) if i not in drop]
+    kept_headers = [headers[i] for i in kept_idx]
+    pos_puname = kept_headers.index("Pickup Name") + 1
+    pos_common = kept_headers.index("COMMON REMARK") + 1 if "COMMON REMARK" in kept_headers else None
+    pos_traffic = kept_headers.index("TRAFFIC ORDER") + 1
+    col_rem0 = len(kept_headers) + 1
+    ncol = col_rem0 + 8
+    out_headers = kept_headers + list(TYPE_COLS)
+
+    def merged_name(code, name):
+        return BKK0104_DISPLAY if code in ("BKK01", "BKK04") else name
+
+    sub = sorted(recs, key=lambda r: (group_of(r["code"]) or "zzz", merged_name(r["code"], r["name"]), r["bk"]))
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Pending"
+    for c, h in enumerate(out_headers, start=1):
+        cell = ws.cell(row=1, column=c, value=h)
+        cell.font = pp_font_header
+        cell.fill = FILL_HEADER
+        cell.border = BORDER
+        cell.alignment = ALIGN_LEFT
+
+    for idx, rec in enumerate(sub):
+        r = idx + 2
+        if rec["no_name"]:
+            row_fill = FILL_FLAG
+        else:
+            hl = tpsz_highlight_color(rec["raw"][i_tpsz])
+            row_fill = PatternFill("solid", fgColor=hl) if hl else None
+        kept_vals = [rec["raw"][i] for i in kept_idx]
+        for c, v in enumerate(kept_vals, start=1):
+            val = _num(v)
+            if c == pos_puname:
+                val = merged_name(rec["code"], rec["name"])
+            elif pos_common and c == pos_common and rec["code"] not in COMMON_REMARK_KEEP_CODES:
+                val = ""
+            cell = ws.cell(row=r, column=c, value=val)
+            cell.font = pp_font
+            cell.border = BORDER
+            cell.alignment = ALIGN_LEFT
+            if row_fill:
+                cell.fill = row_fill
+        if PRECOOL_RE.search(str(rec["raw"][i_traffic] or "")):
+            ws.cell(row=r, column=pos_traffic).font = pp_font_precool
+        for k in range(9):
+            rc = ws.cell(row=r, column=col_rem0 + k, value=_num(rec["remaining"][k]))
+            rc.font = pp_font
+            rc.border = BORDER
+            rc.alignment = ALIGN_LEFT
+            if row_fill:
+                rc.fill = row_fill
+        ws.row_dimensions[r].height = ROW_H
+
+    tr = len(sub) + 2
+    for c in range(1, ncol + 1):
+        L = get_column_letter(c)
+        cell = ws.cell(row=tr, column=c)
+        cell.font = pp_font_bold
+        cell.fill = FILL_TOTAL
+        cell.border = BORDER
+        cell.alignment = ALIGN_LEFT
+        if c == 1:
+            cell.value = "TOTAL"
+        elif c >= col_rem0:
+            cell.value = f"=SUM({L}2:{L}{tr - 1})"
+    ws.row_dimensions[tr].height = ROW_H
+
+    bad = [rec["bk"] for rec in sub if rec["no_name"]]
+    if bad:
+        cell = ws.cell(row=tr + 2, column=1,
+                        value=f"NOTE: {len(bad)} row(s) highlighted above have NO Pickup Name — verify BK No: "
+                              + ", ".join(bad))
+        cell.font = pp_font_bold
+
+    by_name = {}
+    for rec in sub:
+        name = merged_name(rec["code"], rec["name"]) or "(ไม่มี Pickup Name)"
+        n, b = by_name.setdefault(name, [0, 0.0])
+        by_name[name][0] = n + 1
+        by_name[name][1] = b + rec["balance"]
+
+    sr = tr + 4
+    for c, h in enumerate(["Pickup Name", "Number of Records", "Total Balance"], start=1):
+        cell = ws.cell(row=sr, column=c, value=h)
+        cell.font = pp_font_bold
+        cell.fill = FILL_GROUPSUM
+        cell.border = BORDER
+        cell.alignment = ALIGN_LEFT
+    ws.row_dimensions[sr].height = ROW_H
+
+    rr = sr + 1
+    for name in sorted(by_name):
+        n, b = by_name[name]
+        for c, v in enumerate([name, n, b], start=1):
+            cell = ws.cell(row=rr, column=c, value=v)
+            cell.font = pp_font
+            cell.border = BORDER
+            cell.alignment = ALIGN_LEFT
+        ws.row_dimensions[rr].height = ROW_H
+        rr += 1
+
+    for c, v in enumerate(["สรุปยอดบุ๊คทั้งหมด", len(sub), sum(rec["balance"] for rec in sub)], start=1):
+        cell = ws.cell(row=rr, column=c, value=v)
+        cell.font = pp_font_bold
+        cell.fill = FILL_TOTAL
+        cell.border = BORDER
+        cell.alignment = ALIGN_LEFT
+    ws.row_dimensions[rr].height = ROW_H
+
+    ws.freeze_panes = None
+    ws.auto_filter.ref = f"A1:{get_column_letter(ncol)}{tr - 1}"
+    widths = []
+    for oi, h in zip(kept_idx, kept_headers):
+        if h in PP_WIDE_COLS:
+            widths.append(PP_WIDE_COLS[h])
+        else:
+            vals = [merged_name(rec["code"], rec["name"]) if h == "Pickup Name" else _num(rec["raw"][oi])
+                    for rec in sub]
+            widths.append(_autofit_width(h, vals))
+    for k, t in enumerate(TYPE_COLS):
+        rem_vals = [_num(rec["remaining"][k]) for rec in sub]
+        widths.append(_autofit_width(t, rem_vals))
+    set_widths(ws, widths)
+
+    _force_recalc(wb)
+    path = os.path.join(outdir, "bkg pending - all.xlsx")
+    wb.save(path)
+    return path
+
+
 # ----------------------------------------------------------------------------
 # main
 # ----------------------------------------------------------------------------
@@ -778,6 +930,9 @@ def main():
     made, grand = build_per_pickup(recs, headers, entries, name_by_code, out_dir)
     for p in made:
         print(f"[out2] {p}")
+
+    all_path = build_all_pending(recs, headers, out_dir)
+    print(f"[out3] {all_path}")
 
     # ---- consistency check ----
     excl = sum(rec["balance"] for rec in recs if rec["no_name"])
