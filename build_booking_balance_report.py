@@ -556,6 +556,10 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
     i_common = headers.index("COMMON REMARK")
     i_tpsz = headers.index("TPSZ")
     i_traffic = headers.index("TRAFFIC ORDER")
+    i_types = [headers.index(t) for t in TYPE_COLS]
+    pu_positions = [i for i, h in enumerate(headers) if h == "Pickup"]
+    i_puqty = pu_positions[-1]                     # คอลัมน์จำนวนที่รับแล้ว (ไม่ใช่ i_pucode)
+    i_return = headers.index("Return")
 
     os.makedirs(outdir, exist_ok=True)
     made = []
@@ -567,23 +571,19 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
             continue
         sub.sort(key=lambda x: x["bk"])
 
-        # ตัด Pickup code/name/DOC CUST เสมอ ; ตัด COMMON REMARK ยกเว้นกลุ่ม BKK01/BKK02/BKK04/LCH55
-        drop = {i_pucode, i_puname, i_doc}
+        # ตัด Pickup code/name/DOC CUST/ตู้ที่ booked/รับแล้ว/Return/Balance เสมอ (เหลือแต่ยอดคงเหลือสุทธิ
+        # ต่อชนิดตู้) ; ตัด COMMON REMARK ยกเว้นกลุ่ม BKK01/BKK02/BKK04/LCH55
+        drop = {i_pucode, i_puname, i_doc, i_puqty, i_return} | set(i_types)
         if not (codes & COMMON_REMARK_KEEP_CODES):
             drop.add(i_common)
         kept_idx = [i for i in range(len(headers)) if i not in drop]
         kept_headers = [headers[i] for i in kept_idx]
 
-        type_pos = [kept_headers.index(t) + 1 for t in TYPE_COLS]        # 1-based
-        Lt = [get_column_letter(p) for p in type_pos]
-        puqty_pos = len(kept_headers) - 1          # Pickup(qty) อยู่ก่อน Return
-        Lq = get_column_letter(puqty_pos)
-        col_bal = len(kept_headers) + 1
-        col_rem0 = len(kept_headers) + 2
+        col_rem0 = len(kept_headers) + 1
         ncol = col_rem0 + 8
         pos_traffic = kept_headers.index("TRAFFIC ORDER") + 1
 
-        out_headers = kept_headers + ["Balance (Booked - Pickup)"] + [f"{t} Remaining" for t in TYPE_COLS]
+        out_headers = kept_headers + [f"{t} Remaining" for t in TYPE_COLS]
 
         wb = Workbook()
         ws = wb.active
@@ -594,7 +594,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
             cell.font = pp_font_header
             cell.fill = FILL_HEADER
             cell.border = BORDER
-            cell.alignment = ALIGN_CENTER if c in type_pos else ALIGN_LEFT
+            cell.alignment = ALIGN_LEFT
 
         for idx, rec in enumerate(sub):
             r = idx + 3
@@ -605,24 +605,14 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
                 cell = ws.cell(row=r, column=c, value=_num(v))
                 cell.font = pp_font
                 cell.border = BORDER
-                cell.alignment = ALIGN_CENTER if c in type_pos else ALIGN_LEFT
+                cell.alignment = ALIGN_LEFT
                 if row_fill:
                     cell.fill = row_fill
             if PRECOOL_RE.search(str(rec["raw"][i_traffic] or "")):
                 ws.cell(row=r, column=pos_traffic).font = pp_font_precool
 
-            bal_cell = ws.cell(row=r, column=col_bal, value=f"=SUM({Lt[0]}{r}:{Lt[-1]}{r})-{Lq}{r}")
-            bal_cell.font = pp_font
-            bal_cell.border = BORDER
-            bal_cell.alignment = ALIGN_LEFT
-            if row_fill:
-                bal_cell.fill = row_fill
             for k in range(9):
-                if k == 0:
-                    f = f"=MAX(0,{Lt[0]}{r}-MAX(0,{Lq}{r}))"
-                else:
-                    f = f"=MAX(0,{Lt[k]}{r}-MAX(0,{Lq}{r}-SUM({Lt[0]}{r}:{Lt[k-1]}{r})))"
-                rc = ws.cell(row=r, column=col_rem0 + k, value=f)
+                rc = ws.cell(row=r, column=col_rem0 + k, value=_num(rec["remaining"][k]))
                 rc.font = pp_font
                 rc.border = BORDER
                 rc.alignment = ALIGN_LEFT
@@ -637,10 +627,10 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
             cell.font = pp_font_bold
             cell.fill = FILL_TOTAL
             cell.border = BORDER
-            cell.alignment = ALIGN_CENTER if c in type_pos else ALIGN_LEFT
+            cell.alignment = ALIGN_LEFT
             if c == 1:
                 cell.value = "TOTAL"
-            elif c in type_pos or c == puqty_pos or c == col_bal or c >= col_rem0:
+            elif c >= col_rem0:
                 cell.value = f"=SUM({L}3:{L}{tr - 1})"
         ws.row_dimensions[tr].height = ROW_H
 
@@ -690,8 +680,6 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
             else:
                 vals = [_num(rec["raw"][oi]) for rec in sub]
                 widths.append(_autofit_width(h, vals))
-        bal_vals = [_num(rec["balance"]) for rec in sub]
-        widths.append(_autofit_width("Balance (Booked - Pickup)", bal_vals))
         for k, t in enumerate(TYPE_COLS):
             rem_vals = [_num(rec["remaining"][k]) for rec in sub]
             widths.append(_autofit_width(f"{t} Remaining", rem_vals))
