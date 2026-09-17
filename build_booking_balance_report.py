@@ -528,12 +528,26 @@ def full_name_map(headers, rows):
 # ----------------------------------------------------------------------------
 # OUTPUT 2 : ไฟล์แยกตาม Pickup Name
 # ----------------------------------------------------------------------------
+PP_WIDE_COLS = {"ORG CUST": 26, "COMMODITY": 24, "TRAFFIC ORDER": 28}
+ALIGN_LEFT = Alignment(horizontal="left", vertical="center", wrap_text=True)
+ALIGN_CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+
+def _autofit_width(header_text, raw_values, floor=10, pad=2):
+    max_len = len(str(header_text))
+    for v in raw_values:
+        s = str(v)
+        if len(s) > max_len:
+            max_len = len(s)
+    return max(max_len + pad, floor)
+
+
 def build_per_pickup(recs, headers, entries, name_by_code, outdir):
-    # ฟอนต์ Calibri 11 เฉพาะไฟล์ชุดนี้ (ไม่แตะ F_CELL/F_HEADER/F_BOLD ที่ไฟล์รวมใช้ร่วมกัน)
-    pp_font = Font(name=FONT_NAME, size=11)
-    pp_font_bold = Font(name=FONT_NAME, size=11, bold=True)
-    pp_font_header = Font(name=FONT_NAME, size=11, bold=True, color=C_WHITE)
-    pp_font_precool = Font(name=FONT_NAME, size=11, bold=True, color="FF0000")
+    # ฟอนต์ Tahoma 8 เฉพาะไฟล์ชุดนี้ (ไม่แตะ F_CELL/F_HEADER/F_BOLD ที่ไฟล์รวมใช้ร่วมกัน)
+    pp_font = Font(name="Tahoma", size=8)
+    pp_font_bold = Font(name="Tahoma", size=8, bold=True)
+    pp_font_header = Font(name="Tahoma", size=8, bold=True, color=C_WHITE)
+    pp_font_precool = Font(name="Tahoma", size=8, bold=True, color="FF0000")
     ROW_H = 13
 
     i_pucode = headers.index("Pickup")
@@ -574,13 +588,13 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
         wb = Workbook()
         ws = wb.active
         ws.title = "Pending"
-        put_title(ws, f"BKG PENDING — {e['name']}   ({'+'.join(e['codes'])})", ncol)
+        put_title(ws, f"BKG PENDING   ({'+'.join(e['codes'])})", ncol)
         for c, h in enumerate(out_headers, start=1):
             cell = ws.cell(row=2, column=c, value=h)
             cell.font = pp_font_header
             cell.fill = FILL_HEADER
             cell.border = BORDER
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.alignment = ALIGN_CENTER if c in type_pos else ALIGN_LEFT
 
         for idx, rec in enumerate(sub):
             r = idx + 3
@@ -591,6 +605,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
                 cell = ws.cell(row=r, column=c, value=_num(v))
                 cell.font = pp_font
                 cell.border = BORDER
+                cell.alignment = ALIGN_CENTER if c in type_pos else ALIGN_LEFT
                 if row_fill:
                     cell.fill = row_fill
             if PRECOOL_RE.search(str(rec["raw"][i_traffic] or "")):
@@ -599,6 +614,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
             bal_cell = ws.cell(row=r, column=col_bal, value=f"=SUM({Lt[0]}{r}:{Lt[-1]}{r})-{Lq}{r}")
             bal_cell.font = pp_font
             bal_cell.border = BORDER
+            bal_cell.alignment = ALIGN_LEFT
             if row_fill:
                 bal_cell.fill = row_fill
             for k in range(9):
@@ -609,6 +625,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
                 rc = ws.cell(row=r, column=col_rem0 + k, value=f)
                 rc.font = pp_font
                 rc.border = BORDER
+                rc.alignment = ALIGN_LEFT
                 if row_fill:
                     rc.fill = row_fill
             ws.row_dimensions[r].height = ROW_H
@@ -620,6 +637,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
             cell.font = pp_font_bold
             cell.fill = FILL_TOTAL
             cell.border = BORDER
+            cell.alignment = ALIGN_CENTER if c in type_pos else ALIGN_LEFT
             if c == 1:
                 cell.value = "TOTAL"
             elif c in type_pos or c == puqty_pos or c == col_bal or c >= col_rem0:
@@ -639,6 +657,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
             cell.font = pp_font_bold
             cell.fill = FILL_GROUPSUM
             cell.border = BORDER
+            cell.alignment = ALIGN_LEFT
         ws.row_dimensions[sr].height = ROW_H
 
         rr = sr + 1
@@ -648,6 +667,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
                 cell = ws.cell(row=rr, column=c, value=v)
                 cell.font = pp_font
                 cell.border = BORDER
+                cell.alignment = ALIGN_LEFT
             ws.row_dimensions[rr].height = ROW_H
             rr += 1
 
@@ -656,15 +676,25 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
             cell.font = pp_font_bold
             cell.fill = FILL_TOTAL
             cell.border = BORDER
+            cell.alignment = ALIGN_LEFT
         ws.row_dimensions[rr].height = ROW_H
 
-        ws.freeze_panes = "A3"
+        # ไม่ freeze panes ; ความกว้างคอลัมน์ชิดตามจำนวนตัวอักษรจริง (ขั้นต่ำ 10) ยกเว้น
+        # ORG CUST / COMMODITY / TRAFFIC ORDER ที่คงความกว้างคงที่ไว้ให้อ่านง่าย
+        ws.freeze_panes = None
         ws.auto_filter.ref = f"A2:{get_column_letter(ncol)}{tr - 1}"
         widths = []
-        for h in kept_headers:
-            widths.append({"BK No": 18, "COMMON REMARK": 34, "TRAFFIC ORDER": 28,
-                           "COMMODITY": 24, "ORG CUST": 26}.get(h, 11))
-        widths += [22] + [15] * 9
+        for oi, h in zip(kept_idx, kept_headers):
+            if h in PP_WIDE_COLS:
+                widths.append(PP_WIDE_COLS[h])
+            else:
+                vals = [_num(rec["raw"][oi]) for rec in sub]
+                widths.append(_autofit_width(h, vals))
+        bal_vals = [_num(rec["balance"]) for rec in sub]
+        widths.append(_autofit_width("Balance (Booked - Pickup)", bal_vals))
+        for k, t in enumerate(TYPE_COLS):
+            rem_vals = [_num(rec["remaining"][k]) for rec in sub]
+            widths.append(_autofit_width(f"{t} Remaining", rem_vals))
         set_widths(ws, widths)
 
         ws.row_dimensions[1].height = ROW_H
