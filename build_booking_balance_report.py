@@ -583,7 +583,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
         ncol = col_rem0 + 8
         pos_traffic = kept_headers.index("TRAFFIC ORDER") + 1
 
-        out_headers = kept_headers + [f"{t} Remaining" for t in TYPE_COLS]
+        out_headers = kept_headers + list(TYPE_COLS)
 
         wb = Workbook()
         ws = wb.active
@@ -682,7 +682,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
                 widths.append(_autofit_width(h, vals))
         for k, t in enumerate(TYPE_COLS):
             rem_vals = [_num(rec["remaining"][k]) for rec in sub]
-            widths.append(_autofit_width(f"{t} Remaining", rem_vals))
+            widths.append(_autofit_width(t, rem_vals))
         set_widths(ws, widths)
 
         ws.row_dimensions[1].height = ROW_H
