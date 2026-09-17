@@ -588,16 +588,15 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
         wb = Workbook()
         ws = wb.active
         ws.title = "Pending"
-        put_title(ws, f"BKG PENDING   ({'+'.join(e['codes'])})", ncol)
         for c, h in enumerate(out_headers, start=1):
-            cell = ws.cell(row=2, column=c, value=h)
+            cell = ws.cell(row=1, column=c, value=h)
             cell.font = pp_font_header
             cell.fill = FILL_HEADER
             cell.border = BORDER
             cell.alignment = ALIGN_LEFT
 
         for idx, rec in enumerate(sub):
-            r = idx + 3
+            r = idx + 2
             row_fill_color = tpsz_highlight_color(rec["raw"][i_tpsz])
             row_fill = PatternFill("solid", fgColor=row_fill_color) if row_fill_color else None
             kept_vals = [rec["raw"][i] for i in kept_idx]
@@ -620,7 +619,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
                     rc.fill = row_fill
             ws.row_dimensions[r].height = ROW_H
 
-        tr = len(sub) + 3
+        tr = len(sub) + 2
         for c in range(1, ncol + 1):
             L = get_column_letter(c)
             cell = ws.cell(row=tr, column=c)
@@ -631,7 +630,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
             if c == 1:
                 cell.value = "TOTAL"
             elif c >= col_rem0:
-                cell.value = f"=SUM({L}3:{L}{tr - 1})"
+                cell.value = f"=SUM({L}2:{L}{tr - 1})"
         ws.row_dimensions[tr].height = ROW_H
 
         # ---- สรุปยอดบุ๊คทั้งหมด + แยกตาม pickup name (เผื่อไฟล์รวมหลาย code เช่น BKK01+BKK04) ----
@@ -672,7 +671,7 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
         # ไม่ freeze panes ; ความกว้างคอลัมน์ชิดตามจำนวนตัวอักษรจริง (ขั้นต่ำ 10) ยกเว้น
         # ORG CUST / COMMODITY / TRAFFIC ORDER ที่คงความกว้างคงที่ไว้ให้อ่านง่าย
         ws.freeze_panes = None
-        ws.auto_filter.ref = f"A2:{get_column_letter(ncol)}{tr - 1}"
+        ws.auto_filter.ref = f"A1:{get_column_letter(ncol)}{tr - 1}"
         widths = []
         for oi, h in zip(kept_idx, kept_headers):
             if h in PP_WIDE_COLS:
@@ -686,7 +685,6 @@ def build_per_pickup(recs, headers, entries, name_by_code, outdir):
         set_widths(ws, widths)
 
         ws.row_dimensions[1].height = ROW_H
-        ws.row_dimensions[2].height = ROW_H
 
         _force_recalc(wb)
         fname = f"bkg pending - {sanitize_filename(e['name'])}.xlsx"
