@@ -171,7 +171,8 @@ HTML_TEMPLATE = r"""<!doctype html>
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
        font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans Thai",sans-serif;font-size:14px}
-  header{background:var(--accent);color:#fff;padding:16px 22px;
+  header{background:linear-gradient(rgba(31,78,120,.82),rgba(31,78,120,.82)),url('1308902_0.jpg') center/cover no-repeat;
+         color:#fff;padding:16px 22px;
          display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
   header h1{margin:0;font-size:28px;font-weight:700}
   header .sub{opacity:.8;font-size:12.5px;margin-top:3px}
