@@ -93,13 +93,39 @@ def tpsz_highlight_color(tpsz):
 # ----------------------------------------------------------------------------
 # STAGE 1 : อ่าน .xls -> ดึงข้อมูลดิบ (ไม่ใช้ AI)
 # ----------------------------------------------------------------------------
+def _pick_clean_sheet(book):
+    """เลือกชีตที่ใช้ได้จริงจากไฟล์ที่มีหลายชีต: ต้องมี 'BK No' เป็น header และนับว่ามีแถว
+    header ('BK No') แทรกซ้ำอยู่ในข้อมูลกี่แถว (สัญญาณว่าเป็นชีตเสีย/เอาหลายก้อนมาแปะต่อกัน) —
+    เลือกชีตที่จำนวนแทรกซ้ำน้อยที่สุด (0 ถ้ามี) แทนที่จะใช้ชีตแรกเสมอ
+    """
+    candidates = []
+    for idx, sheet in enumerate(book.sheets()):
+        header_row = None
+        for r in range(min(sheet.nrows, 10)):
+            rowvals = [str(sheet.cell_value(r, c)).strip() for c in range(sheet.ncols)]
+            if "BK No" in rowvals:
+                header_row = r
+                break
+        if header_row is None:
+            continue
+        dupe = sum(1 for r in range(header_row + 1, sheet.nrows)
+                   if str(sheet.cell_value(r, 0)).strip() == "BK No")
+        candidates.append((dupe, idx, sheet))
+    if not candidates:
+        return book.sheet_by_index(0)
+    candidates.sort(key=lambda x: (x[0], x[1]))
+    return candidates[0][2]
+
+
 def read_xls(path):
     """คืน (headers, rows) โดย rows เป็น list ของ list ตามคอลัมน์ต้นฉบับ
+    - ถ้าไฟล์มีหลายชีต เลือกชีตที่ข้อมูลสะอาดที่สุด (ดู _pick_clean_sheet)
     - ตรวจหาแถว header อัตโนมัติ (แถวที่มีคำว่า 'BK No')
     - ตัดแถวสุดท้าย (footer รวมยอด) ทิ้ง
+    - ถ้าคอลัมน์สุดท้ายว่าง (บางไฟล์ export หัว "Return" หาย) เติมชื่อ "Return" ให้
     """
     book = xlrd.open_workbook(path)
-    sheet = book.sheet_by_index(0)
+    sheet = _pick_clean_sheet(book)
 
     header_row = None
     for r in range(min(sheet.nrows, 10)):
@@ -111,6 +137,8 @@ def read_xls(path):
         raise SystemExit("หา header row (คอลัมน์ 'BK No') ไม่พบ")
 
     headers = [str(sheet.cell_value(header_row, c)).strip() for c in range(sheet.ncols)]
+    if len(headers) >= 2 and headers[-1] == "" and headers[-2] == "Pickup":
+        headers[-1] = "Return"
 
     rows = []
     for r in range(header_row + 1, sheet.nrows):
