@@ -110,11 +110,13 @@ def _pick_clean_sheet(book):
             continue
         dupe = sum(1 for r in range(header_row + 1, sheet.nrows)
                    if str(sheet.cell_value(r, 0)).strip() == "BK No")
-        candidates.append((dupe, idx, sheet))
+        # คอลัมน์ผิดมาตรฐาน (มาตรฐาน = 27 คอลัมน์) ถือเป็นสัญญาณชีตเสียเช่นกัน
+        # — ให้ความสำคัญรองจากจำนวน header ซ้ำ แต่เหนือกว่าลำดับชีต
+        candidates.append((dupe, abs(sheet.ncols - 27), idx, sheet))
     if not candidates:
         return book.sheet_by_index(0)
-    candidates.sort(key=lambda x: (x[0], x[1]))
-    return candidates[0][2]
+    candidates.sort(key=lambda x: (x[0], x[1], x[2]))
+    return candidates[0][3]
 
 
 def read_xls(path):
