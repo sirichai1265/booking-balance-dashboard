@@ -198,8 +198,22 @@ def col_index(headers, name, last=False):
     return idxs[-1] if last else idxs[0]
 
 
+def load_excluded_bk():
+    """อ่านรายชื่อ BK No ที่ต้องข้ามจาก excluded_bk.txt (ข้างสคริปต์) — ไม่มีไฟล์ = ไม่ข้ามอะไร"""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "excluded_bk.txt")
+    out = set()
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                bk = line.split("#", 1)[0].strip()
+                if bk:
+                    out.add(bk)
+    return out
+
+
 def build_records(headers, rows):
-    """คำนวณ Balance, กรอง > 0, ทำความสะอาด, คืน list ของ dict"""
+    """คำนวณ Balance, กรอง > 0, ทำความสะอาด, คืน list ของ dict (ข้าม BK No ใน excluded_bk.txt)"""
+    excluded = load_excluded_bk()
     i_bk = col_index(headers, "BK No")
     i_vsl = col_index(headers, "VSL")
     i_voy = col_index(headers, "VOY")
@@ -214,7 +228,7 @@ def build_records(headers, rows):
 
     recs = []
     for vals in rows:
-        if str(vals[i_bk]).strip() == "":
+        if str(vals[i_bk]).strip() == "" or str(vals[i_bk]).strip() in excluded:
             continue
         booked_types = [float(vals[i] or 0) for i in i_type]
         booked = sum(booked_types)
