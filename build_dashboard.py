@@ -326,7 +326,7 @@ function filtered(){
       if (sum <= 0) return false;
     }
     if (s){
-      const hay = [d.bk,d.vsl,d.voy,d.pucode,d.puname,d.cust,abbrCust(d.cust),d.commodity,d.traffic,d.lod,d.dis,d.tpsz,d.etd]
+      const hay = [d.bk,d.vsl,d.voy,d.pucode,d.puname,d.cust,d.commodity,d.traffic,d.lod,d.dis,d.tpsz,d.etd]
         .join(' ').toLowerCase();
       if (!hay.includes(s)) return false;
     }
@@ -346,14 +346,6 @@ function sortRows(rows){
 
 function esc(s){ return String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-// ORG CUST -> ตัวย่อ: ตัวอักษรอังกฤษตัวแรกของแต่ละวรรค (วรรคที่ไม่มีตัวอักษรอังกฤษ เช่น "(1991)" ข้าม)
-// "DOUBLE A (1991) PUBLIC COMPANY LIMITED" -> "D A P C L" ; "PJW CORPORATION CO., LTD." -> "P C C L"
-function abbrCust(s){
-  return String(s??'').split(/\s+/)
-    .map(w => (w.match(/[A-Za-z]/) || [''])[0].toUpperCase())
-    .filter(Boolean).join(' ');
-}
-
 function render(){
   const rows = sortRows(filtered());
   const tbody = $('#tbody');
@@ -368,7 +360,7 @@ function render(){
       `<td><span class="expander" data-bk="${esc(d.bk)}">${esc(d.bk)} &#9662;</span></td>`+
       `<td>${esc(d.tpsz)}</td>`+
       `<td>${esc(d.pucode)}</td>`+
-      `<td class="cust" title="${esc(d.cust)}">${esc(abbrCust(d.cust))}</td>`+
+      `<td class="cust" title="${esc(d.cust)}">${esc(d.cust)}</td>`+
       `<td class="num">${d.booked_qty}</td><td class="num">${d.pickup_qty}</td>`+
       `<td class="num bal">${d.balance}</td>`+
       TYPE_COLS.map(c => `<td class="num rem${d.rem[c]>0?' has':''}">${d.rem[c]>0?d.rem[c]:'·'}</td>`).join('');
